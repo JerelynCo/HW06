@@ -6,6 +6,7 @@ and may not be redistributed without written permission.*/
 #include <SDL2/SDL_image.h>
 #include <stdio.h>
 #include <string>
+#include <cmath>
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 640;
@@ -120,6 +121,10 @@ class Dot
 		int mVelX, mVelY;
 
 		int angle;
+
+		SDL_Rect box;
+
+		int centerX,centerY;
 };
 
 class Pipe{
@@ -287,7 +292,6 @@ void LTexture::render( int x, int y, SDL_Rect* clip, double angle, SDL_Point* ce
 		renderQuad.w = clip->w;
 		renderQuad.h = clip->h;
 	}
-
 	//Render to screen
 	SDL_RenderCopyEx( gRenderer, mTexture, clip, &renderQuad, angle, center, flip );
 }
@@ -308,7 +312,13 @@ Dot::Dot()
     //Initialize the offsets
     mPosX = 100;
     mPosY = 100;
+
     angle = -20;
+
+    box.x = mPosX;
+    box.y = mPosY;
+    box.h = DOT_HEIGHT;
+    box.w = DOT_WIDTH;
 
     //Initialize the velocity
     mVelX = 0;
@@ -359,6 +369,24 @@ void Dot::move()
         }
     }
 }
+
+/*void Dot::rotateBox()
+{
+    centerX = box.x+(box.w/2);
+    centerY = box.y+(box.h/2);
+
+    int upperRX = centerX +(-box.w/2)*cos(20)-(box.y/2)*sin(20);
+    int upperRY = centerY +(-box.w/2)*sin(20)+(box.y/2)*cos(20);
+
+    int lowerRX = centerX +(-box.w/2)*cos(20)-(-box.y/2)*sin(20);
+    int lowerRY = centerY +(-box.w/2)*sin(20)+(-box.y/2)*cos(20);
+
+    int upperLX = centerX +(box.w/2)*cos(20)-(box.y/2)*sin(20);
+    int upperLY = centerY +(box.w/2)*sin(20)+(box.y/2)*cos(20);
+
+    int lowerLX = centerX +(box.w/2)*cos(20)-(-box.y/2)*sin(20);
+    int lowerLY = centerY +(box.w/2)*sin(20)+(-box.y/2)*cos(20);
+}*/
 
 void Dot::render()
 {
