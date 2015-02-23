@@ -120,6 +120,19 @@ class Dot
 		int mVelX, mVelY;
 };
 
+class Pipe{
+    public:
+        static const int DOT_WIDTH = 20;
+		static const int DOT_HEIGHT = 20;
+
+		Pipe();
+
+		//Shows the pipe on the screen
+		void render();
+
+		int pPosX,pPosY;
+};
+
 //Starts up SDL and creates window
 bool init();
 
@@ -137,6 +150,7 @@ SDL_Renderer* gRenderer = NULL;
 
 //Scene textures
 LTexture gDotTexture;
+LTexture gPipe;
 
 LTexture::LTexture()
 {
@@ -297,6 +311,11 @@ Dot::Dot()
     mVelX = 0;
     mVelY = 0;
 }
+Pipe::Pipe()
+{
+    pPosX = 200;
+    pPosY = 400;
+}
 bool goDown = false;
 void Dot::handleEvent( SDL_Event& e )
 {
@@ -326,13 +345,17 @@ void Dot::move()
     {
         mPosY -= 10;
     }
-
 }
 
 void Dot::render()
 {
     //Show the dot
 	gDotTexture.render( mPosX, mPosY );
+}
+
+void Pipe::render()
+{
+    gPipe.render(pPosX,pPosY);
 }
 
 bool init()
@@ -400,6 +423,11 @@ bool loadMedia()
 		printf( "Failed to load dot texture!\n" );
 		success = false;
 	}
+	if( !gPipe.loadFromFile( "Images/pipe.png" ) )
+	{
+		printf( "Failed to load dot texture!\n" );
+		success = false;
+	}
 
 	return success;
 }
@@ -444,7 +472,7 @@ int main( int argc, char* args[] )
 
 			//The dot that will be moving around on the screen
 			Dot dot;
-
+            Pipe pipe;
 			//While application is running
 			while( !quit )
 			{
@@ -470,6 +498,7 @@ int main( int argc, char* args[] )
 
 				//Render objects
 				dot.render();
+				pipe.render();
 
 				//Update screen
 				SDL_RenderPresent( gRenderer );
