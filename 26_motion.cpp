@@ -118,6 +118,8 @@ class Dot
 
 		//The velocity of the dot
 		int mVelX, mVelY;
+
+		int angle;
 };
 
 class Pipe{
@@ -306,6 +308,7 @@ Dot::Dot()
     //Initialize the offsets
     mPosX = 100;
     mPosY = 100;
+    angle = -20;
 
     //Initialize the velocity
     mVelX = 0;
@@ -339,18 +342,28 @@ void Dot::move()
     //Move the dot up or down
     if(goDown == true)
     {
-        mPosY += 10;
+        mPosY -= 10;
+        angle -=5;
+        if (angle<-20)
+        {
+            angle = -20;
+        }
     }
     else if(( mPosY < 0 ) || ( mPosY + DOT_HEIGHT > SCREEN_HEIGHT )||goDown == false)
     {
-        mPosY -= 10;
+        mPosY += 10;
+        angle +=5;
+        if (angle>20)
+        {
+            angle = 20;
+        }
     }
 }
 
 void Dot::render()
 {
     //Show the dot
-	gDotTexture.render( mPosX, mPosY );
+	gDotTexture.render( mPosX, mPosY,NULL,angle );
 }
 
 void Pipe::render()
