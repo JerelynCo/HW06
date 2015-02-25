@@ -115,6 +115,8 @@ class Bird
 		void rotateBox();
 
     private:
+		bool goUp;
+
 		//The X and Y offsets of the Bird
 		int bPosX, bPosY;
 
@@ -128,6 +130,8 @@ class Bird
 		SDL_Rect box;
 
 		int centerX,centerY;
+
+
 };
 
 class Pipe{
@@ -215,6 +219,82 @@ bool LTexture::loadFromFile( std::string path )
 	//Return success
 	mTexture = newTexture;
 	return mTexture != NULL;
+}
+
+LTimer::LTimer(){
+    //Initialize the variables
+    mStartTicks = 0;
+    mPausedTicks = 0;
+
+    mPaused = false;
+    mStarted = false;
+}
+
+void LTimer::start(){
+    //Start the timer
+    mStarted = true;
+    //Unpause the timer
+    mPaused = false;
+    //Get the current clock time
+    mStartTicks = SDL_GetTicks();
+    mPausedTicks = 0;
+}
+void LTimer::stop(){
+    //Stop the timer
+    mStarted = false;
+    //Unpause the timer
+    mPaused = false;
+    //Clear tick variables
+    mStartTicks = 0;
+    mPausedTicks = 0;
+}
+void LTimer::pause(){
+//If the timer is running and isn't already paused
+    if(mStarted && !mPaused){
+    //Pause the timer
+        mPaused = true;
+        //Calculate the paused ticks
+        mPausedTicks = SDL_GetTicks()-mStartTicks;
+        mStartTicks = 0;
+    }
+}
+void LTimer::unpause(){
+    //If the timer is running and paused
+    if(mStarted && mPaused){
+        //Unpause the timer
+        mPaused = false;
+        //Reset the startng ticks
+        mStartTicks = SDL_GetTicks()-mPausedTicks;
+        //Reset the paused ticks
+        mPausedTicks = 0;
+    }
+}
+
+Uint32 LTimer::getTicks(){
+//The actual timer time
+    Uint32 time = 0;
+//If the timer is running
+    if(mStarted){
+    //If the timer is paused
+        if(mPaused){
+            //Return the number of ticks when the timer is paused
+            time = mPausedTicks;
+        }else{
+            //Return the current time minus the start time
+            time = SDL_GetTicks()-mStartTicks;
+        }
+    }
+    return time;
+}
+
+bool LTimer::isStarted(){
+    //Timer is running and paused or unpaused
+    return mStarted;
+}
+
+bool LTimer::isPaused(){
+    //Timer is running and paused
+    return mPaused && mStarted;
 }
 
 #ifdef _SDL_TTF_H
@@ -312,6 +392,8 @@ int LTexture::getHeight()
 
 Bird :: Bird()
 {
+    goUp = false;
+
     //Initialize the offsets
     bPosX = 100;
     bPosY = 100;
@@ -336,7 +418,7 @@ Pipe::Pipe()
     pPosX = 200;
     pPosY = 400;
 }
-bool goUp = false;
+
 void Bird::handleEvent( SDL_Event& e )
 {
     //If a key was pressed
@@ -509,6 +591,9 @@ void close()
 	SDL_Quit();
 }
 
+//Global timer
+LTimer gTimer;
+
 int main( int argc, char* args[] )
 {
 	//Start up SDL and create window
@@ -534,6 +619,9 @@ int main( int argc, char* args[] )
 			//The Bird that will be moving around on the screen
 		    Bird bird;
             Pipe pipe;
+
+            //start global game timer
+            gTimer.start();
 			//While application is running
 			while( !quit )
 			{
@@ -545,22 +633,32 @@ int main( int argc, char* args[] )
 					{
 						quit = true;
 					}
-
+					else if(e.type == SDL_KEYDOWN){
+                        //Pause/unpause
+                        if(e.key.keysym.sym == SDLK_p){
+                            if(gTimer.isPaused()){
+                                gTimer.unpause();
+                            }
+                            else{
+                                gTimer.pause();
+                            }
+                        }
+                    }
 					//Handle input for the Bird
 				 bird.handleEvent( e );
 				}
+                if(gTimer.isStarted() && !gTimer.isPaused()){
+                    //Move the Bird
+                    bird.move();
 
-				//Move the Bird
-			 bird.move();
+                    //Clear screen
+                    SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
+                    SDL_RenderClear( gRenderer );
 
-				//Clear screen
-				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
-				SDL_RenderClear( gRenderer );
-
-				//Render objects
-			    bird.render();
-				pipe.render();
-
+                    //Render objects
+                    bird.render();
+                    pipe.render();
+                 }
 				//Update screen
 				SDL_RenderPresent( gRenderer );
 			}
