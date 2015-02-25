@@ -1,5 +1,4 @@
-/*This source code copyrighted by Lazy Foo' Productions (2004-2014)
-and may not be redistributed without written permission.*/
+/***for controls press and release the up botton don't hold it down or else the burd will fall***/
 
 //Using SDL, SDL_image, standard IO, and strings
 #include <SDL2/SDL.h>
@@ -120,9 +119,9 @@ class Bird
 		int bPosX, bPosY;
 
 		//The velocity of the Bird
-		int mVelX, mVelY;
+		int mVelY;
 
-		int gGravX, gGravY;
+		int gGravY;
 
 		int angle;
 
@@ -318,12 +317,10 @@ Bird :: Bird()
     bPosY = 100;
 
     //Initialize the velocity
-    mVelX = gGravX;
-    mVelY = gGravY;
+    mVelY = 0;
 
     //Initialize the velocity
-    gGravX = 0;
-    gGravY = 0;
+    gGravY = 1;
 
     angle = -20;
 
@@ -339,20 +336,20 @@ Pipe::Pipe()
     pPosX = 200;
     pPosY = 400;
 }
-bool goDown = false;
+bool goUp = false;
 void Bird::handleEvent( SDL_Event& e )
 {
     //If a key was pressed
 	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_UP) )
     {
-       goDown = true;
+       goUp = true;
 
     }
     //If a key was released
     else if(( e.type == SDL_KEYUP && e.key.repeat == 0 )&&(e.key.keysym.sym==SDLK_UP))
     {
         //Adjust the velocity
-       goDown = false;
+       goUp = false;
 
     }
 }
@@ -360,27 +357,34 @@ void Bird::handleEvent( SDL_Event& e )
 void Bird::move()
 {
     //Move the Bird up or down
-    if(goDown == true)
+    if(goUp == true)
     {
-        //10 is gravity
-
         bPosY = bPosY - mVelY;
-        mVelY = mVelY - 1;
+        mVelY = mVelY - gGravY;
         angle -=5;
         if (angle<-20)
         {
             angle = -20;
         }
+        //reset the vel to stop it from going really fast
+        if(bPosY < 50)
+        {
+            mVelY = 1;
+        }
     }
-    else if(( bPosY < 0 ) || ( bPosY + BIRD_HEIGHT > SCREEN_HEIGHT )||goDown == false)
+    else if(goUp == false)
     {
-
         bPosY = bPosY + mVelY;
-        mVelY = mVelY + 1;
+        mVelY = mVelY + gGravY;
         angle +=5;
         if (angle>20)
         {
             angle = 20;
+        }
+        //maybe needed later
+        if(bPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10)
+        {
+            mVelY = 1;
         }
     }
     rotateBox();
