@@ -122,6 +122,8 @@ class Bird
 		//The velocity of the Bird
 		int mVelX, mVelY;
 
+		int gGravX, gGravY;
+
 		int angle;
 
 		SDL_Rect box;
@@ -315,6 +317,14 @@ Bird :: Bird()
     bPosX = 100;
     bPosY = 100;
 
+    //Initialize the velocity
+    mVelX = gGravX;
+    mVelY = gGravY;
+
+    //Initialize the velocity
+    gGravX = 0;
+    gGravY = 0;
+
     angle = -20;
 
     box.x = bPosX;
@@ -322,9 +332,7 @@ Bird :: Bird()
     box.h = BIRD_HEIGHT;
     box.w = BIRD_WIDTH;
 
-    //Initialize the velocity
-    mVelX = 0;
-    mVelY = 0;
+
 }
 Pipe::Pipe()
 {
@@ -354,7 +362,10 @@ void Bird::move()
     //Move the Bird up or down
     if(goDown == true)
     {
-        bPosY -= 10;
+        //10 is gravity
+
+        bPosY = bPosY - mVelY;
+        mVelY = mVelY - 1;
         angle -=5;
         if (angle<-20)
         {
@@ -363,7 +374,9 @@ void Bird::move()
     }
     else if(( bPosY < 0 ) || ( bPosY + BIRD_HEIGHT > SCREEN_HEIGHT )||goDown == false)
     {
-        bPosY += 10;
+
+        bPosY = bPosY + mVelY;
+        mVelY = mVelY + 1;
         angle +=5;
         if (angle>20)
         {
