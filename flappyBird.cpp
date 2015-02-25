@@ -90,34 +90,36 @@ class LTimer
 		bool mStarted;
 };
 
-//The dot that will move around on the screen
-class Dot
+//The Bird that will move around on the screen
+class Bird
 {
     public:
-		//The dimensions of the dot
-		static const int DOT_WIDTH = 20;
-		static const int DOT_HEIGHT = 20;
+		//The dimensions of the Bird
+		static const int BIRD_WIDTH = 20;
+		static const int BIRD_HEIGHT = 20;
 
-		//Maximum axis velocity of the dot
-		static const int DOT_VEL = 10;
+		//Maximum axis velocity of the Bird
+		static const int Bird_VEL = 10;
 
 		//Initializes the variables
-		Dot();
+		Bird();
 
-		//Takes key presses and adjusts the dot's velocity
+		//Takes key presses and adjusts the Bird's velocity
 		void handleEvent( SDL_Event& e );
 
-		//Moves the dot
+		//Moves the Bird
 		void move();
 
-		//Shows the dot on the screen
+		//Shows the Bird on the screen
 		void render();
 
-    private:
-		//The X and Y offsets of the dot
-		int mPosX, mPosY;
+		void rotateBox();
 
-		//The velocity of the dot
+    private:
+		//The X and Y offsets of the Bird
+		int bPosX, bPosY;
+
+		//The velocity of the Bird
 		int mVelX, mVelY;
 
 		int angle;
@@ -129,8 +131,8 @@ class Dot
 
 class Pipe{
     public:
-        static const int DOT_WIDTH = 20;
-		static const int DOT_HEIGHT = 20;
+        static const int Bird_WIDTH = 20;
+		static const int Bird_HEIGHT = 20;
 
 		Pipe();
 
@@ -156,7 +158,7 @@ SDL_Window* gWindow = NULL;
 SDL_Renderer* gRenderer = NULL;
 
 //Scene textures
-LTexture gDotTexture;
+LTexture gBirdTexture;
 LTexture gPipe;
 
 LTexture::LTexture()
@@ -307,18 +309,18 @@ int LTexture::getHeight()
 }
 
 
-Dot::Dot()
+Bird :: Bird()
 {
     //Initialize the offsets
-    mPosX = 100;
-    mPosY = 100;
+    bPosX = 100;
+    bPosY = 100;
 
     angle = -20;
 
-    box.x = mPosX;
-    box.y = mPosY;
-    box.h = DOT_HEIGHT;
-    box.w = DOT_WIDTH;
+    box.x = bPosX;
+    box.y = bPosY;
+    box.h = BIRD_HEIGHT;
+    box.w = BIRD_WIDTH;
 
     //Initialize the velocity
     mVelX = 0;
@@ -330,7 +332,7 @@ Pipe::Pipe()
     pPosY = 400;
 }
 bool goDown = false;
-void Dot::handleEvent( SDL_Event& e )
+void Bird::handleEvent( SDL_Event& e )
 {
     //If a key was pressed
 	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_UP) )
@@ -347,30 +349,31 @@ void Dot::handleEvent( SDL_Event& e )
     }
 }
 
-void Dot::move()
+void Bird::move()
 {
-    //Move the dot up or down
+    //Move the Bird up or down
     if(goDown == true)
     {
-        mPosY -= 10;
+        bPosY -= 10;
         angle -=5;
         if (angle<-20)
         {
             angle = -20;
         }
     }
-    else if(( mPosY < 0 ) || ( mPosY + DOT_HEIGHT > SCREEN_HEIGHT )||goDown == false)
+    else if(( bPosY < 0 ) || ( bPosY + BIRD_HEIGHT > SCREEN_HEIGHT )||goDown == false)
     {
-        mPosY += 10;
+        bPosY += 10;
         angle +=5;
         if (angle>20)
         {
             angle = 20;
         }
     }
+    rotateBox();
 }
 
-/*void Dot::rotateBox()
+void Bird::rotateBox()
 {
     centerX = box.x+(box.w/2);
     centerY = box.y+(box.h/2);
@@ -386,12 +389,12 @@ void Dot::move()
 
     int lowerLX = centerX +(box.w/2)*cos(20)-(-box.y/2)*sin(20);
     int lowerLY = centerY +(box.w/2)*sin(20)+(-box.y/2)*cos(20);
-}*/
+}
 
-void Dot::render()
+void Bird::render()
 {
-    //Show the dot
-	gDotTexture.render( mPosX, mPosY,NULL,angle );
+    //Show the Bird
+	 gBirdTexture.render( bPosX, bPosY,NULL,angle );
 }
 
 void Pipe::render()
@@ -458,15 +461,15 @@ bool loadMedia()
 	//Loading success flag
 	bool success = true;
 
-	//Load dot texture
-	if( !gDotTexture.loadFromFile( "Images/bird.jpeg" ) )
+	//Load Bird texture
+	if( ! gBirdTexture.loadFromFile( "Images/bird.jpeg" ) )
 	{
-		printf( "Failed to load dot texture!\n" );
+		printf( "Failed to load Bird texture!\n" );
 		success = false;
 	}
 	if( !gPipe.loadFromFile( "Images/pipe.png" ) )
 	{
-		printf( "Failed to load dot texture!\n" );
+		printf( "Failed to load Bird texture!\n" );
 		success = false;
 	}
 
@@ -476,7 +479,7 @@ bool loadMedia()
 void close()
 {
 	//Free loaded images
-	gDotTexture.free();
+    gBirdTexture.free();
 
 	//Destroy window
 	SDL_DestroyRenderer( gRenderer );
@@ -511,8 +514,8 @@ int main( int argc, char* args[] )
 			//Event handler
 			SDL_Event e;
 
-			//The dot that will be moving around on the screen
-			Dot dot;
+			//The Bird that will be moving around on the screen
+		    Bird bird;
             Pipe pipe;
 			//While application is running
 			while( !quit )
@@ -526,19 +529,19 @@ int main( int argc, char* args[] )
 						quit = true;
 					}
 
-					//Handle input for the dot
-					dot.handleEvent( e );
+					//Handle input for the Bird
+				 bird.handleEvent( e );
 				}
 
-				//Move the dot
-				dot.move();
+				//Move the Bird
+			 bird.move();
 
 				//Clear screen
 				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
 				SDL_RenderClear( gRenderer );
 
 				//Render objects
-				dot.render();
+			    bird.render();
 				pipe.render();
 
 				//Update screen
