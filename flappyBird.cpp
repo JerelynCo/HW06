@@ -109,7 +109,7 @@ class Bird{
 		void handleEvent( SDL_Event& e );
 
 		//Moves the Bird
-		void fly();
+		void descend();
 
 		//Shows the Bird on the screen
 		void render();
@@ -237,7 +237,7 @@ int main( int argc, char* args[] )
 				}
                 if(gTimer.isStarted() && !gTimer.isPaused()){
                     //Move the Bird
-                    bird.fly();
+                    bird.descend();
                 }
          	//Clear screen
             SDL_RenderClear( gRenderer );
@@ -508,7 +508,7 @@ Bird::Bird(){
 
     //Initialize the velocity
 
-    bGravity = 0.01;
+    bGravity = 0.02;
 
     angle = -20;
 
@@ -522,6 +522,7 @@ void Bird::handleEvent(SDL_Event& e){
     //If a key was pressed
 	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_SPACE) )
     {
+       //goes up
        mPosY = mPosY - 40;
        angle = -20;
     }
@@ -535,10 +536,10 @@ void Bird::handleEvent(SDL_Event& e){
 }
 
 
-//mPosY = mPosY - 50;
+//mPosY = mPosY - 50; for keydown most appropritae motion so far
 //angle = -20;
 
-void Bird::fly()
+void Bird::descend()
 {
     if(goUp == false){
         mPosY = mPosY + mVelY;
@@ -547,11 +548,14 @@ void Bird::fly()
         if (angle>90){
             angle = 90;
         }
-        //needed for velocity reset
-        //if((mPosY>(SCREEN_HEIGHT/2)&&(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-200)){
-        if((mPosY>(SCREEN_HEIGHT/2)&&(mPosY < SCREEN_HEIGHT-240))){
-            mVelY = 1;
+        //prevent overspeeding
+        if(mVelY>5){
+           mVelY = 1;
         }
+
+        //if((mPosY>(SCREEN_HEIGHT/2-10)&&(mPosY < SCREEN_HEIGHT-255))){
+          //  mVelY = 1;
+        //}
     }
     //goUp = false;
     rotateBox();
