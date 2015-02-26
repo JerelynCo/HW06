@@ -9,6 +9,7 @@
 #include <string>
 #include <cmath>
 #include <sstream>
+#include <vector>
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 800;
@@ -110,6 +111,7 @@ class Bird{
 
 		//Moves the Bird
 		void descend();
+		void ascend();
 
 		//Shows the Bird on the screen
 		void render();
@@ -138,12 +140,18 @@ class Pipe{
     public:
         static const int PIPE_WIDTH = 80;
 
-		Pipe();
+		Pipe(int x, int y);
+
+		~Pipe(){};
 
 		//Shows the pipe on the screen
-		void render();
+		void render(int x, int y, int angle);
+
+		void move();
 
 		int mPosX, mPosY;
+
+		int angle;
 };
 
 //Starts up SDL and creates window
@@ -206,7 +214,12 @@ int main( int argc, char* args[] )
 
 			//Objects
 		    Bird bird;
-            Pipe pipe;
+
+            std::vector<Pipe> btmPipe;
+            std::vector<Pipe> topPipe;
+
+            int i = 0;
+            int j = 0;
 
 			SDL_Rect scoreboard = {0, 0, SCREEN_WIDTH, SCOREBOARD_HEIGHT};
 			SDL_Rect playfield = {0, SCOREBOARD_HEIGHT, SCREEN_WIDTH, PLAYFIELD_HEIGHT};
@@ -238,6 +251,25 @@ int main( int argc, char* args[] )
                 if(gTimer.isStarted() && !gTimer.isPaused()){
                     //Move the Bird
                     bird.descend();
+                    //creates new Pipes
+
+                    //temporary generation of pipes
+                    if((i%50)==0){
+                        btmPipe.emplace_back(800,300);
+                    }
+                    i++;
+                    for(auto &Pipe : btmPipe){
+                        Pipe.move();
+                    }
+
+                    if(j%50 == 0){
+                        topPipe.emplace_back(800,-300);
+                    }
+                    j++;
+                    for(auto &Pipe : topPipe){
+                        Pipe.move();
+                    }
+
                 }
          	//Clear screen
             SDL_RenderClear( gRenderer );
@@ -274,7 +306,21 @@ int main( int argc, char* args[] )
 
             //Render objects
             bird.render();
-            pipe.render();
+            /**renders and deletes objects**/
+            for(auto &Pipe : btmPipe){
+                Pipe.render(Pipe.mPosX,Pipe.mPosY,0);
+                if(Pipe.mPosX<0){
+                    Pipe.~Pipe();
+                    btmPipe.erase(btmPipe.begin());
+                }
+            }
+            for(auto &Pipe : topPipe){
+                Pipe.render(Pipe.mPosX,Pipe.mPosY,180);
+                if(Pipe.mPosX<0){
+                    Pipe.~Pipe();
+                    topPipe.erase(topPipe.begin());
+                }
+            }
 
             //Update screen
 			SDL_RenderPresent( gRenderer );
@@ -508,7 +554,7 @@ Bird::Bird(){
 
     //Initialize the velocity
 
-    bGravity = 0.02;
+    bGravity = 0.1;
 
     angle = -20;
 
@@ -518,17 +564,18 @@ Bird::Bird(){
     box.w = BIRD_WIDTH;
 }
 
+Pipe::Pipe(int x, int y){
+    mPosX = x;
+    mPosY = y;
+
+    angle = 0;
+}
+
 void Bird::handleEvent(SDL_Event& e){
     //If a key was pressed
 	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_SPACE) )
     {
-       //goes up
-       mPosY = mPosY - 50;
-       angle = -20;
-       //prevent overspeeding
-        if(mVelY>4){
-           mVelY = 1;
-        }
+       ascend();
     }
 
     //If a key was released
@@ -539,6 +586,16 @@ void Bird::handleEvent(SDL_Event& e){
     }
 }
 
+void Bird::ascend()
+{
+   //goes up
+   mPosY = mPosY - 50;
+   angle = -20;
+   //prevent overspeeding
+    if(mVelY>4){
+       mVelY = 1;
+    }
+}
 
 //mPosY = mPosY - 50; for keydown most appropritae motion so far
 //angle = -20;
@@ -549,123 +606,13 @@ void Bird::descend()
         mPosY = mPosY + mVelY;
         mVelY = mVelY + bGravity;
         angle += 1;
-        if (angle>90){
+        if (angle > 90){
             angle = 90;
         }
-
-       //if((mPosY>(SCREEN_HEIGHT/2-10)&&(mPosY < SCREEN_HEIGHT-255))){
-          //  mVelY = 1;
-        //}
     }
-    //goUp = false;
+
     rotateBox();
 }
-
-/*
-int i = 0;
-int j = 0;
-//goUp = true for keyDown motion less smooth but bird stops when key is held
-void Bird::fly()
-{
-    //Move the Bird up or down
-    if((goUp == true)&&(i == 0)){
-        for(int i = 0; i<10; i++){
-            mPosY = mPosY - 8;
-            angle -=10;
-            if (angle<-20){
-                angle = -20;
-            }
-            //reset the vel to stop it from going really fast
-            if(mPosY < 50){
-                mVelY = 1;
-            }
-        }
-        i = 1;
-    }
-    else if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle +=5;
-        if (angle>20){
-            angle = 20;
-        }
-        //maybe needed later
-        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
-            mVelY = 1;
-        }
-        i=0;
-    }
-    //goUp = false;
-    rotateBox();
-}*/
-
-/*
-//goUp =true for keydown motion is smoother but continuous key press will contimue to increase the position
-void Bird::fly()
-{
-    //Move the Bird up or down
-    if((goUp == true)){
-        mPosY = mPosY - 10;
-        angle -=10;
-        if (angle<-20){
-            angle = -20;
-        }
-        //reset the vel to stop it from going really fast
-        if(mPosY < 50){
-            mVelY = 1;
-        }
-        }
-
-     else if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle +=5;
-        if (angle>20){
-            angle = 20;
-        }
-        //maybe needed later
-        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
-            mVelY = 1;
-        }
-
-    }
-    //goUp = false;
-    rotateBox();
-}
-*/
-
-/*
-//mPosY = 5 for keyDown not smooth at all bird teleports
-void Bird::fly()
-{
-    //Move the Bird up or down
-    if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle +=5;
-        if (angle>20){
-            angle = 20;
-        }
-        //maybe needed later
-        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
-            mVelY = 1;
-        }
-    }
-    else{
-        for(int i = 0; i<100; i++){
-           mPosY = mPosY-mVelY;
-        }
-        angle -=10;
-        if (angle<-20){
-            angle = -20;
-        }
-        //reset the vel to stop it from going really fast
-        if(mPosY < 50){
-            mVelY = 1;
-        }
-    }
-    rotateBox();
-}*/
 
 void Bird::rotateBox()
 {
@@ -685,17 +632,16 @@ void Bird::rotateBox()
     int lowerLY = centerY +(box.w/2)*sin(20)+(-box.y/2)*cos(20);
 }
 
+void Pipe::move(){
+    mPosX = mPosX - 10;
+}
+
 void Bird::render(){
 	 gBirdTexture.render( mPosX, mPosY, NULL, angle );
 }
 
-Pipe::Pipe(){
-    mPosX = SCREEN_WIDTH/2;
-    mPosY = SCREEN_HEIGHT/2;
-}
-
-void Pipe::render(){
-    gPipeTexture.render(mPosX, mPosY);
+void Pipe::render(int x, int y, int angle){
+    gPipeTexture.render(x, y, NULL, angle);
 }
 
 bool init(){
@@ -802,4 +748,109 @@ void close()
 	IMG_Quit();
 	SDL_Quit();
 }
+/**experimental motion methods**/
+/*
+int i = 0;
+int j = 0;
+//goUp = true for keyDown motion less smooth but bird stops when key is held
+void Bird::fly()
+{
+    //Move the Bird up or down
+    if((goUp == true)&&(i == 0)){
+        for(int i = 0; i<10; i++){
+            mPosY = mPosY - 8;
+            angle -=10;
+            if (angle<-20){
+                angle = -20;
+            }
+            //reset the vel to stop it from going really fast
+            if(mPosY < 50){
+                mVelY = 1;
+            }
+        }
+        i = 1;
+    }
+    else if(goUp == false){
+        mPosY = mPosY + mVelY;
+        mVelY = mVelY + bGravity;
+        angle +=5;
+        if (angle>20){
+            angle = 20;
+        }
+        //maybe needed later
+        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
+            mVelY = 1;
+        }
+        i=0;
+    }
+    //goUp = false;
+    rotateBox();
+}*/
 
+/*
+//goUp =true for keydown motion is smoother but continuous key press will contimue to increase the position
+void Bird::fly()
+{
+    //Move the Bird up or down
+    if((goUp == true)){
+        mPosY = mPosY - 10;
+        angle -=10;
+        if (angle<-20){
+            angle = -20;
+        }
+        //reset the vel to stop it from going really fast
+        if(mPosY < 50){
+            mVelY = 1;
+        }
+        }
+
+     else if(goUp == false){
+        mPosY = mPosY + mVelY;
+        mVelY = mVelY + bGravity;
+        angle +=5;
+        if (angle>20){
+            angle = 20;
+        }
+        //maybe needed later
+        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
+            mVelY = 1;
+        }
+
+    }
+    //goUp = false;
+    rotateBox();
+}
+*/
+
+/*
+//mPosY = 5 for keyDown not smooth at all bird teleports
+void Bird::fly()
+{
+    //Move the Bird up or down
+    if(goUp == false){
+        mPosY = mPosY + mVelY;
+        mVelY = mVelY + bGravity;
+        angle +=5;
+        if (angle>20){
+            angle = 20;
+        }
+        //maybe needed later
+        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
+            mVelY = 1;
+        }
+    }
+    else{
+        for(int i = 0; i<100; i++){
+           mPosY = mPosY-mVelY;
+        }
+        angle -=10;
+        if (angle<-20){
+            angle = -20;
+        }
+        //reset the vel to stop it from going really fast
+        if(mPosY < 50){
+            mVelY = 1;
+        }
+    }
+    rotateBox();
+}*/
