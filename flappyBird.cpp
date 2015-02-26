@@ -125,6 +125,7 @@ class Bird{
 
 		//The velocity of the Bird
 		double mVelY;
+
 		double bGravity;
 		double angle;
 
@@ -352,6 +353,7 @@ void LTimer::start(){
     mStartTicks = SDL_GetTicks();
     mPausedTicks = 0;
 }
+
 void LTimer::stop(){
     //Stop the timer
     mStarted = false;
@@ -361,6 +363,7 @@ void LTimer::stop(){
     mStartTicks = 0;
     mPausedTicks = 0;
 }
+
 void LTimer::pause(){
 //If the timer is running and isn't already paused
     if(mStarted && !mPaused){
@@ -371,6 +374,7 @@ void LTimer::pause(){
         mStartTicks = 0;
     }
 }
+
 void LTimer::unpause(){
     //If the timer is running and paused
     if(mStarted && mPaused){
@@ -504,7 +508,7 @@ Bird::Bird(){
 
     //Initialize the velocity
 
-    bGravity = 0.1;
+    bGravity = 0.01;
 
     angle = -20;
 
@@ -516,14 +520,14 @@ Bird::Bird(){
 
 void Bird::handleEvent(SDL_Event& e){
     //If a key was pressed
-
 	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_SPACE) )
     {
-       goUp = true;
+       mPosY = mPosY - 40;
+       angle = -20;
     }
-    //If a key was released
 
-    else if(( e.type == SDL_KEYUP && e.key.repeat == 0 )&&(e.key.keysym.sym==SDLK_SPACE                ))
+    //If a key was released
+    else if(( e.type == SDL_KEYUP && e.key.repeat == 0 )&&(e.key.keysym.sym==SDLK_SPACE))
     {
         //Adjust the velocity
        goUp = false;
@@ -531,20 +535,48 @@ void Bird::handleEvent(SDL_Event& e){
 }
 
 
+//mPosY = mPosY - 50;
+//angle = -20;
+
+void Bird::fly()
+{
+    if(goUp == false){
+        mPosY = mPosY + mVelY;
+        mVelY = mVelY + bGravity;
+        angle += 1;
+        if (angle>90){
+            angle = 90;
+        }
+        //needed for velocity reset
+        //if((mPosY>(SCREEN_HEIGHT/2)&&(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-200)){
+        if((mPosY>(SCREEN_HEIGHT/2)&&(mPosY < SCREEN_HEIGHT-240))){
+            mVelY = 1;
+        }
+    }
+    //goUp = false;
+    rotateBox();
+}
+
+/*
+int i = 0;
+int j = 0;
+//goUp = true for keyDown motion less smooth but bird stops when key is held
 void Bird::fly()
 {
     //Move the Bird up or down
-    if(goUp == true){
-        mPosY = mPosY - mVelY;
-        mVelY = mVelY - bGravity;
-        angle -=5;
-        if (angle<-20){
-            angle = -20;
+    if((goUp == true)&&(i == 0)){
+        for(int i = 0; i<10; i++){
+            mPosY = mPosY - 8;
+            angle -=10;
+            if (angle<-20){
+                angle = -20;
+            }
+            //reset the vel to stop it from going really fast
+            if(mPosY < 50){
+                mVelY = 1;
+            }
         }
-        //reset the vel to stop it from going really fast
-        if(mPosY < 50){
-            mVelY = 1;
-        }
+        i = 1;
     }
     else if(goUp == false){
         mPosY = mPosY + mVelY;
@@ -557,9 +589,79 @@ void Bird::fly()
         if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
             mVelY = 1;
         }
+        i=0;
     }
+    //goUp = false;
+    rotateBox();
+}*/
+
+/*
+//goUp =true for keydown motion is smoother but continuous key press will contimue to increase the position
+void Bird::fly()
+{
+    //Move the Bird up or down
+    if((goUp == true)){
+        mPosY = mPosY - 10;
+        angle -=10;
+        if (angle<-20){
+            angle = -20;
+        }
+        //reset the vel to stop it from going really fast
+        if(mPosY < 50){
+            mVelY = 1;
+        }
+        }
+
+     else if(goUp == false){
+        mPosY = mPosY + mVelY;
+        mVelY = mVelY + bGravity;
+        angle +=5;
+        if (angle>20){
+            angle = 20;
+        }
+        //maybe needed later
+        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
+            mVelY = 1;
+        }
+
+    }
+    //goUp = false;
     rotateBox();
 }
+*/
+
+/*
+//mPosY = 5 for keyDown not smooth at all bird teleports
+void Bird::fly()
+{
+    //Move the Bird up or down
+    if(goUp == false){
+        mPosY = mPosY + mVelY;
+        mVelY = mVelY + bGravity;
+        angle +=5;
+        if (angle>20){
+            angle = 20;
+        }
+        //maybe needed later
+        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
+            mVelY = 1;
+        }
+    }
+    else{
+        for(int i = 0; i<100; i++){
+           mPosY = mPosY-mVelY;
+        }
+        angle -=10;
+        if (angle<-20){
+            angle = -20;
+        }
+        //reset the vel to stop it from going really fast
+        if(mPosY < 50){
+            mVelY = 1;
+        }
+    }
+    rotateBox();
+}*/
 
 void Bird::rotateBox()
 {
