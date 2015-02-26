@@ -523,8 +523,12 @@ void Bird::handleEvent(SDL_Event& e){
 	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_SPACE) )
     {
        //goes up
-       mPosY = mPosY - 40;
+       mPosY = mPosY - 50;
        angle = -20;
+       //prevent overspeeding
+        if(mVelY>4){
+           mVelY = 1;
+        }
     }
 
     //If a key was released
@@ -548,12 +552,8 @@ void Bird::descend()
         if (angle>90){
             angle = 90;
         }
-        //prevent overspeeding
-        if(mVelY>5){
-           mVelY = 1;
-        }
 
-        //if((mPosY>(SCREEN_HEIGHT/2-10)&&(mPosY < SCREEN_HEIGHT-255))){
+       //if((mPosY>(SCREEN_HEIGHT/2-10)&&(mPosY < SCREEN_HEIGHT-255))){
           //  mVelY = 1;
         //}
     }
