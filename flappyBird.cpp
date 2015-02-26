@@ -107,25 +107,25 @@ class Bird
 		void handleEvent( SDL_Event& e );
 
 		//Moves the Bird
-		void move();
+		void fly();
 
 		//Shows the Bird on the screen
 		void render();
 
 		void rotateBox();
 
-    private:
+    //private:
 		bool goUp;
 
 		//The X and Y offsets of the Bird
-		int bPosX, bPosY;
+		double bPosX, bPosY;
 
 		//The velocity of the Bird
-		int mVelY;
+		double mVelY;
 
-		int gGravY;
+		double gGravY;
 
-		int angle;
+		double angle;
 
 		SDL_Rect box;
 
@@ -165,6 +165,90 @@ SDL_Renderer* gRenderer = NULL;
 //Scene textures
 LTexture gBirdTexture;
 LTexture gPipe;
+
+//Global timer
+LTimer gTimer;
+
+int main( int argc, char* args[] )
+{
+	//Start up SDL and create window
+	if( !init() )
+	{
+		printf( "Failed to initialize!\n" );
+	}
+	else
+	{
+		//Load media
+		if( !loadMedia() )
+		{
+			printf( "Failed to load media!\n" );
+		}
+		else
+		{
+			//Main loop flag
+			bool quit = false;
+
+			//Event handler
+			SDL_Event e;
+
+			//The Bird that will be moving around on the screen
+		    Bird bird;
+            Pipe pipe;
+
+            //start global game timer
+            gTimer.start();
+			//While application is running
+			while( !quit )
+			{
+				//Handle events on queue
+				while( SDL_PollEvent( &e ) != 0 )
+				{
+					//User requests quit
+					if( e.type == SDL_QUIT )
+					{
+						quit = true;
+					}
+					else if(e.type == SDL_KEYDOWN){
+                        //Pause/unpause
+                        if(e.key.keysym.sym == SDLK_p){
+                            if(gTimer.isPaused()){
+                                gTimer.unpause();
+                            }
+                            else{
+                                gTimer.pause();
+                            }
+                        }
+
+                    }
+					//Handle input for the Bird
+				 bird.handleEvent( e );
+                }
+                if(gTimer.isStarted() && !gTimer.isPaused()){
+                    //Move the Bird
+                     //printf(" ");
+                     //printf("%u",bird.goUp );
+                    bird.fly();
+
+                    //Clear screen
+                    SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
+                    SDL_RenderClear( gRenderer );
+
+                    //Render objects
+                    bird.render();
+                    pipe.render();
+                 }
+				//Update screen
+				SDL_RenderPresent( gRenderer );
+			}
+		}
+	}
+
+	//Free resources and close SDL
+	close();
+
+	return 0;
+}
+
 
 LTexture::LTexture()
 {
@@ -402,7 +486,7 @@ Bird :: Bird()
     mVelY = 0;
 
     //Initialize the velocity
-    gGravY = 1;
+    gGravY = 0.1;
 
     angle = -20;
 
@@ -422,13 +506,13 @@ Pipe::Pipe()
 void Bird::handleEvent( SDL_Event& e )
 {
     //If a key was pressed
-	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_UP) )
+	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_SPACE) )
     {
        goUp = true;
 
     }
     //If a key was released
-    else if(( e.type == SDL_KEYUP && e.key.repeat == 0 )&&(e.key.keysym.sym==SDLK_UP))
+    else if(( e.type == SDL_KEYUP && e.key.repeat == 0 )&&(e.key.keysym.sym==SDLK_SPACE                ))
     {
         //Adjust the velocity
        goUp = false;
@@ -436,7 +520,7 @@ void Bird::handleEvent( SDL_Event& e )
     }
 }
 
-void Bird::move()
+void Bird::fly()
 {
     //Move the Bird up or down
     if(goUp == true)
@@ -591,82 +675,3 @@ void close()
 	SDL_Quit();
 }
 
-//Global timer
-LTimer gTimer;
-
-int main( int argc, char* args[] )
-{
-	//Start up SDL and create window
-	if( !init() )
-	{
-		printf( "Failed to initialize!\n" );
-	}
-	else
-	{
-		//Load media
-		if( !loadMedia() )
-		{
-			printf( "Failed to load media!\n" );
-		}
-		else
-		{
-			//Main loop flag
-			bool quit = false;
-
-			//Event handler
-			SDL_Event e;
-
-			//The Bird that will be moving around on the screen
-		    Bird bird;
-            Pipe pipe;
-
-            //start global game timer
-            gTimer.start();
-			//While application is running
-			while( !quit )
-			{
-				//Handle events on queue
-				while( SDL_PollEvent( &e ) != 0 )
-				{
-					//User requests quit
-					if( e.type == SDL_QUIT )
-					{
-						quit = true;
-					}
-					else if(e.type == SDL_KEYDOWN){
-                        //Pause/unpause
-                        if(e.key.keysym.sym == SDLK_p){
-                            if(gTimer.isPaused()){
-                                gTimer.unpause();
-                            }
-                            else{
-                                gTimer.pause();
-                            }
-                        }
-                    }
-					//Handle input for the Bird
-				 bird.handleEvent( e );
-				}
-                if(gTimer.isStarted() && !gTimer.isPaused()){
-                    //Move the Bird
-                    bird.move();
-
-                    //Clear screen
-                    SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
-                    SDL_RenderClear( gRenderer );
-
-                    //Render objects
-                    bird.render();
-                    pipe.render();
-                 }
-				//Update screen
-				SDL_RenderPresent( gRenderer );
-			}
-		}
-	}
-
-	//Free resources and close SDL
-	close();
-
-	return 0;
-}
