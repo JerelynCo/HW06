@@ -3,17 +3,21 @@
 //Using SDL, SDL_image, standard IO, and strings
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_mixer.h>
 #include <stdio.h>
 #include <string>
 #include <cmath>
+#include <sstream>
 
 //Screen dimension constants
-const int SCREEN_WIDTH = 640;
-const int SCREEN_HEIGHT = 480;
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 500;
+const int SCOREBOARD_HEIGHT = 50;
+const int PLAYFIELD_HEIGHT = SCREEN_HEIGHT-SCOREBOARD_HEIGHT;
 
 //Texture wrapper class
-class LTexture
-{
+class LTexture{
 	public:
 		//Initializes variables
 		LTexture();
@@ -58,8 +62,7 @@ class LTexture
 };
 
 //The application time based timer
-class LTimer
-{
+class LTimer{
     public:
 		//Initializes variables
 		LTimer();
@@ -90,15 +93,14 @@ class LTimer
 };
 
 //The Bird that will move around on the screen
-class Bird
-{
+class Bird{
     public:
 		//The dimensions of the Bird
-		static const int BIRD_WIDTH = 20;
-		static const int BIRD_HEIGHT = 20;
+		static const int BIRD_WIDTH = 40;
+		static const int BIRD_HEIGHT = 40;
 
 		//Maximum axis velocity of the Bird
-		static const int Bird_VEL = 10;
+		static const int BIRD_VELOCITY = 10;
 
 		//Initializes the variables
 		Bird();
@@ -114,37 +116,33 @@ class Bird
 
 		void rotateBox();
 
-    //private:
+    private:
 		bool goUp;
 
 		//The X and Y offsets of the Bird
-		double bPosX, bPosY;
+
+		double mPosX, mPosY;
 
 		//The velocity of the Bird
 		double mVelY;
-
-		double gGravY;
-
+		double bGravity;
 		double angle;
 
 		SDL_Rect box;
 
 		int centerX,centerY;
-
-
 };
 
 class Pipe{
     public:
-        static const int Bird_WIDTH = 20;
-		static const int Bird_HEIGHT = 20;
+        static const int PIPE_WIDTH = 80;
 
 		Pipe();
 
 		//Shows the pipe on the screen
 		void render();
 
-		int pPosX,pPosY;
+		int mPosX, mPosY;
 };
 
 //Starts up SDL and creates window
@@ -152,6 +150,8 @@ bool init();
 
 //Loads media
 bool loadMedia();
+
+int gScore = 0;
 
 //Frees media and shuts down SDL
 void close();
@@ -162,26 +162,33 @@ SDL_Window* gWindow = NULL;
 //The window renderer
 SDL_Renderer* gRenderer = NULL;
 
+//Global Font
+TTF_Font* gFont =  NULL;
+
 //Scene textures
 LTexture gBirdTexture;
-LTexture gPipe;
+LTexture gPipeTexture;
+LTexture gBGTexture;
+
+//Scoreboard textures
+LTexture gScoreTexture, gScoreTextTexture;
 
 //Global timer
 LTimer gTimer;
 
+
+
 int main( int argc, char* args[] )
+
 {
 	//Start up SDL and create window
-	if( !init() )
-	{
+	if( !init() ){
 		printf( "Failed to initialize!\n" );
 	}
-	else
-	{
+	else{
 		//Load media
-		if( !loadMedia() )
-		{
-			printf( "Failed to load media!\n" );
+		if(!loadMedia()){
+			printf("Failed to load media!\n");
 		}
 		else
 		{
@@ -191,21 +198,26 @@ int main( int argc, char* args[] )
 			//Event handler
 			SDL_Event e;
 
-			//The Bird that will be moving around on the screen
+			//The background scrolling offset
+			int scrollingOffset = 0;
+
+			std::stringstream scoreText;
+
+			//Objects
 		    Bird bird;
             Pipe pipe;
+
+			SDL_Rect scoreboard = {0, 0, SCREEN_WIDTH, SCOREBOARD_HEIGHT};
+			SDL_Rect playfield = {0, SCOREBOARD_HEIGHT, SCREEN_WIDTH, PLAYFIELD_HEIGHT};
 
             //start global game timer
             gTimer.start();
 			//While application is running
-			while( !quit )
-			{
+			while( !quit ){
 				//Handle events on queue
-				while( SDL_PollEvent( &e ) != 0 )
-				{
+				while( SDL_PollEvent( &e ) != 0 ){
 					//User requests quit
-					if( e.type == SDL_QUIT )
-					{
+					if( e.type == SDL_QUIT ){
 						quit = true;
 					}
 					else if(e.type == SDL_KEYDOWN){
@@ -218,54 +230,75 @@ int main( int argc, char* args[] )
                                 gTimer.pause();
                             }
                         }
-
                     }
 					//Handle input for the Bird
-				 bird.handleEvent( e );
-                }
+				 	bird.handleEvent( e );
+				}
                 if(gTimer.isStarted() && !gTimer.isPaused()){
                     //Move the Bird
-                     //printf(" ");
-                     //printf("%u",bird.goUp );
                     bird.fly();
+                }
+         	//Clear screen
+            SDL_RenderClear( gRenderer );
 
-                    //Clear screen
-                    SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
-                    SDL_RenderClear( gRenderer );
+            SDL_RenderSetViewport(gRenderer, &scoreboard);
+            SDL_SetRenderDrawColor(gRenderer, 0xB5, 0xBF, 0xFF, 0xFF );
 
-                    //Render objects
-                    bird.render();
-                    pipe.render();
-                 }
-				//Update screen
-				SDL_RenderPresent( gRenderer );
+            scoreText.str("");
+			scoreText << gScore;
+
+			//Render text
+			SDL_Color textColor = {0x00, 0x00, 0x00, 0xFF};
+			if(!gScoreTexture.loadFromRenderedText(scoreText.str().c_str(), textColor)){
+				printf("Unable to render score texture!\n");
+			}
+
+			//Render textures
+			gScoreTextTexture.render((SCREEN_WIDTH-gScoreTextTexture.getWidth())/2, SCOREBOARD_HEIGHT-gScoreTextTexture.getHeight());
+			gScoreTexture.render((SCREEN_WIDTH/2+gScoreTextTexture.getWidth()/2), SCOREBOARD_HEIGHT-gScoreTexture.getHeight());
+			gBirdTexture.render(0,0);
+
+            SDL_RenderSetViewport(gRenderer, &playfield);
+            SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xBF, 0xFF );
+
+            //Scroll background
+			--scrollingOffset;
+			if(scrollingOffset < -gBGTexture.getWidth()){
+				scrollingOffset = 0;
+			}
+			//Render background
+			gBGTexture.render(scrollingOffset, 0);
+			gBGTexture.render(scrollingOffset + gBGTexture.getWidth(), 0);
+			gBGTexture.render(scrollingOffset + 2*gBGTexture.getWidth(), 0);
+
+            //Render objects
+            bird.render();
+            pipe.render();
+
+            //Update screen
+			SDL_RenderPresent( gRenderer );
 			}
 		}
 	}
-
 	//Free resources and close SDL
 	close();
-
 	return 0;
 }
 
 
-LTexture::LTexture()
-{
+LTexture::LTexture(){
 	//Initialize
 	mTexture = NULL;
 	mWidth = 0;
 	mHeight = 0;
 }
 
-LTexture::~LTexture()
-{
+LTexture::~LTexture(){
 	//Deallocate
 	free();
 }
 
-bool LTexture::loadFromFile( std::string path )
-{
+bool LTexture::loadFromFile( std::string path ){
 	//Get rid of preexisting texture
 	free();
 
@@ -273,24 +306,20 @@ bool LTexture::loadFromFile( std::string path )
 	SDL_Texture* newTexture = NULL;
 
 	//Load image at specified path
-	SDL_Surface* loadedSurface = IMG_Load( path.c_str() );
-	if( loadedSurface == NULL )
-	{
+	SDL_Surface* loadedSurface = IMG_Load(path.c_str());
+	if( loadedSurface == NULL ){
 		printf( "Unable to load image %s! SDL_image Error: %s\n", path.c_str(), IMG_GetError() );
 	}
-	else
-	{
+	else{
 		//Color key image
-		SDL_SetColorKey( loadedSurface, SDL_TRUE, SDL_MapRGB( loadedSurface->format, 0, 0xFF, 0xFF ) );
+		SDL_SetColorKey( loadedSurface, SDL_TRUE, SDL_MapRGB( loadedSurface->format, 0xFF, 0xFF, 0xFF ) );
 
 		//Create texture from surface pixels
         newTexture = SDL_CreateTextureFromSurface( gRenderer, loadedSurface );
-		if( newTexture == NULL )
-		{
+		if( newTexture == NULL ){
 			printf( "Unable to create texture from %s! SDL Error: %s\n", path.c_str(), SDL_GetError() );
 		}
-		else
-		{
+		else{
 			//Get image dimensions
 			mWidth = loadedSurface->w;
 			mHeight = loadedSurface->h;
@@ -388,17 +417,14 @@ bool LTexture::loadFromRenderedText( std::string textureText, SDL_Color textColo
 	free();
 
 	//Render text surface
-	SDL_Surface* textSurface = TTF_RenderText_Solid( gFont, textureText.c_str(), textColor );
-	if( textSurface != NULL )
-	{
+	SDL_Surface* textSurface = TTF_RenderText_Solid( gFont, textureText.c_str(), textColor);
+	if( textSurface != NULL ){
 		//Create texture from surface pixels
         mTexture = SDL_CreateTextureFromSurface( gRenderer, textSurface );
-		if( mTexture == NULL )
-		{
+		if( mTexture == NULL ){
 			printf( "Unable to create texture from rendered text! SDL Error: %s\n", SDL_GetError() );
 		}
-		else
-		{
+		else{
 			//Get image dimensions
 			mWidth = textSurface->w;
 			mHeight = textSurface->h;
@@ -407,8 +433,7 @@ bool LTexture::loadFromRenderedText( std::string textureText, SDL_Color textColo
 		//Get rid of old surface
 		SDL_FreeSurface( textSurface );
 	}
-	else
-	{
+	else{
 		printf( "Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError() );
 	}
 
@@ -418,8 +443,7 @@ bool LTexture::loadFromRenderedText( std::string textureText, SDL_Color textColo
 }
 #endif
 
-void LTexture::free()
-{
+void LTexture::free(){
 	//Free texture if it exists
 	if( mTexture != NULL )
 	{
@@ -430,26 +454,22 @@ void LTexture::free()
 	}
 }
 
-void LTexture::setColor( Uint8 red, Uint8 green, Uint8 blue )
-{
+void LTexture::setColor( Uint8 red, Uint8 green, Uint8 blue ){
 	//Modulate texture rgb
 	SDL_SetTextureColorMod( mTexture, red, green, blue );
 }
 
-void LTexture::setBlendMode( SDL_BlendMode blending )
-{
+void LTexture::setBlendMode( SDL_BlendMode blending ){
 	//Set blending function
 	SDL_SetTextureBlendMode( mTexture, blending );
 }
 
-void LTexture::setAlpha( Uint8 alpha )
-{
+void LTexture::setAlpha( Uint8 alpha ){
 	//Modulate texture alpha
 	SDL_SetTextureAlphaMod( mTexture, alpha );
 }
 
-void LTexture::render( int x, int y, SDL_Rect* clip, double angle, SDL_Point* center, SDL_RendererFlip flip )
-{
+void LTexture::render( int x, int y, SDL_Rect* clip, double angle, SDL_Point* center, SDL_RendererFlip flip ){
 	//Set rendering space and render to screen
 	SDL_Rect renderQuad = { x, y, mWidth, mHeight };
 
@@ -463,93 +483,78 @@ void LTexture::render( int x, int y, SDL_Rect* clip, double angle, SDL_Point* ce
 	SDL_RenderCopyEx( gRenderer, mTexture, clip, &renderQuad, angle, center, flip );
 }
 
-int LTexture::getWidth()
-{
+int LTexture::getWidth(){
 	return mWidth;
 }
 
-int LTexture::getHeight()
-{
+int LTexture::getHeight(){
 	return mHeight;
 }
 
 
-Bird :: Bird()
-{
+Bird::Bird(){
     goUp = false;
 
     //Initialize the offsets
-    bPosX = 100;
-    bPosY = 100;
+    mPosX = 100;
+    mPosY = 100;
 
     //Initialize the velocity
     mVelY = 0;
 
     //Initialize the velocity
-    gGravY = 0.1;
+
+    bGravity = 0.1;
 
     angle = -20;
 
-    box.x = bPosX;
-    box.y = bPosY;
+    box.x = mPosX;
+    box.y = mPosY;
     box.h = BIRD_HEIGHT;
     box.w = BIRD_WIDTH;
-
-
-}
-Pipe::Pipe()
-{
-    pPosX = 200;
-    pPosY = 400;
 }
 
-void Bird::handleEvent( SDL_Event& e )
-{
+void Bird::handleEvent(SDL_Event& e){
     //If a key was pressed
+
 	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_SPACE) )
     {
        goUp = true;
-
     }
     //If a key was released
+
     else if(( e.type == SDL_KEYUP && e.key.repeat == 0 )&&(e.key.keysym.sym==SDLK_SPACE                ))
     {
         //Adjust the velocity
        goUp = false;
-
     }
 }
+
 
 void Bird::fly()
 {
     //Move the Bird up or down
-    if(goUp == true)
-    {
-        bPosY = bPosY - mVelY;
-        mVelY = mVelY - gGravY;
+    if(goUp == true){
+        mPosY = mPosY - mVelY;
+        mVelY = mVelY - bGravity;
         angle -=5;
-        if (angle<-20)
-        {
+        if (angle<-20){
             angle = -20;
         }
         //reset the vel to stop it from going really fast
-        if(bPosY < 50)
-        {
+        if(mPosY < 50){
             mVelY = 1;
         }
     }
-    else if(goUp == false)
-    {
-        bPosY = bPosY + mVelY;
-        mVelY = mVelY + gGravY;
+    else if(goUp == false){
+        mPosY = mPosY + mVelY;
+        mVelY = mVelY + bGravity;
         angle +=5;
-        if (angle>20)
-        {
+        if (angle>20){
             angle = 20;
         }
         //maybe needed later
-        if(bPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10)
-        {
+        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
             mVelY = 1;
         }
     }
@@ -574,40 +579,38 @@ void Bird::rotateBox()
     int lowerLY = centerY +(box.w/2)*sin(20)+(-box.y/2)*cos(20);
 }
 
-void Bird::render()
-{
-    //Show the Bird
-	 gBirdTexture.render( bPosX, bPosY,NULL,angle );
+void Bird::render(){
+	 gBirdTexture.render( mPosX, mPosY, NULL, angle );
 }
 
-void Pipe::render()
-{
-    gPipe.render(pPosX,pPosY);
+Pipe::Pipe(){
+    mPosX = SCREEN_WIDTH/2;
+    mPosY = SCREEN_HEIGHT/2;
 }
 
-bool init()
-{
+void Pipe::render(){
+    gPipeTexture.render(mPosX, mPosY);
+}
+
+bool init(){
 	//Initialization flag
 	bool success = true;
 
 	//Initialize SDL
-	if( SDL_Init( SDL_INIT_VIDEO ) < 0 )
-	{
+	if( SDL_Init( SDL_INIT_VIDEO ) < 0 ){
 		printf( "SDL could not initialize! SDL Error: %s\n", SDL_GetError() );
 		success = false;
 	}
 	else
 	{
 		//Set texture filtering to linear
-		if( !SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "1" ) )
-		{
+		if( !SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "1" ) ){
 			printf( "Warning: Linear texture filtering not enabled!" );
 		}
 
 		//Create window
-		gWindow = SDL_CreateWindow( "SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
-		if( gWindow == NULL )
-		{
+		gWindow = SDL_CreateWindow( "Flappy Bird", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN );
+		if( gWindow == NULL ){
 			printf( "Window could not be created! SDL Error: %s\n", SDL_GetError() );
 			success = false;
 		}
@@ -615,47 +618,61 @@ bool init()
 		{
 			//Create vsynced renderer for window
 			gRenderer = SDL_CreateRenderer( gWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC );
-			if( gRenderer == NULL )
-			{
+			if( gRenderer == NULL )	{
 				printf( "Renderer could not be created! SDL Error: %s\n", SDL_GetError() );
 				success = false;
 			}
-			else
-			{
+			else{
 				//Initialize renderer color
 				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xFF, 0xFF );
 
 				//Initialize PNG loading
 				int imgFlags = IMG_INIT_PNG;
-				if( !( IMG_Init( imgFlags ) & imgFlags ) )
-				{
+				if( !( IMG_Init( imgFlags ) & imgFlags ) ){
 					printf( "SDL_image could not initialize! SDL_image Error: %s\n", IMG_GetError() );
+					success = false;
+				}
+				//Initialize SDL_ttf
+				if(TTF_Init() == -1){
+					printf("SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());
 					success = false;
 				}
 			}
 		}
 	}
-
 	return success;
 }
 
-bool loadMedia()
-{
+bool loadMedia(){
 	//Loading success flag
 	bool success = true;
-
-	//Load Bird texture
-	if( ! gBirdTexture.loadFromFile( "Images/bird.jpeg" ) )
-	{
-		printf( "Failed to load Bird texture!\n" );
+	//Load font
+	gFont = TTF_OpenFont("Assets/ostrich.ttf", 50);
+	if(gFont == NULL){
+		printf("Failed to load font! SDL_ttf Error: %s\n", TTF_GetError());
 		success = false;
 	}
-	if( !gPipe.loadFromFile( "Images/pipe.png" ) )
-	{
-		printf( "Failed to load Bird texture!\n" );
+	else{
+		SDL_Color textColor = {0x00, 0x00, 0x00, 0xFF};
+		//Load 'score' texture
+		if(!gScoreTextTexture.loadFromRenderedText("SCORE:", textColor)){
+			printf("Unable to render score texture!\n");
+			success = false;
+		}
+	}
+	//Load textures
+	if( !gBGTexture.loadFromFile("Assets/background.png") ){
+		printf( "Failed to load bg texture!\n" );
 		success = false;
 	}
-
+	if( !gBirdTexture.loadFromFile("Assets/bird.png") ){
+		printf( "Failed to load bird texture!\n" );
+		success = false;
+	}
+	if( !gPipeTexture.loadFromFile("Assets/pipe.png") ){
+		printf( "Failed to load pipe texture!\n" );
+		success = false;
+	}
 	return success;
 }
 
@@ -663,6 +680,11 @@ void close()
 {
 	//Free loaded images
     gBirdTexture.free();
+    gPipeTexture.free();
+    gBGTexture.free();
+
+    TTF_CloseFont(gFont);
+	gFont = NULL;
 
 	//Destroy window
 	SDL_DestroyRenderer( gRenderer );
