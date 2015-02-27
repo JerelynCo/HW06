@@ -218,8 +218,14 @@ int main( int argc, char* args[] )
             std::vector<Pipe> btmPipe;
             std::vector<Pipe> topPipe;
 
-            int i = 0;
+            btmPipe.emplace_back(800,300);
+
+            int pipeCntr = 0;
             int j = 0;
+
+            int placeCntr = 0;
+
+            int rndm = 0;
 
 			SDL_Rect scoreboard = {0, 0, SCREEN_WIDTH, SCOREBOARD_HEIGHT};
 			SDL_Rect playfield = {0, SCOREBOARD_HEIGHT, SCREEN_WIDTH, PLAYFIELD_HEIGHT};
@@ -254,18 +260,22 @@ int main( int argc, char* args[] )
                     //creates new Pipes
 
                     //temporary generation of pipes
-                    if((i%50)==0){
-                        btmPipe.emplace_back(800,300);
+
+                    rndm = rand()%800;//generate a number between 0 to 400
+
+                    if(placeCntr%20==0){
+                        btmPipe.emplace_back(rndm+800,300);
+                        pipeCntr++;
                     }
-                    i++;
+
+                    if(j%20 == 0){
+                        topPipe.emplace_back(rndm+800,-300);
+                    }
+                    placeCntr++;
+                    j++;
                     for(auto &Pipe : btmPipe){
                         Pipe.move();
                     }
-
-                    if(j%50 == 0){
-                        topPipe.emplace_back(800,-300);
-                    }
-                    j++;
                     for(auto &Pipe : topPipe){
                         Pipe.move();
                     }
@@ -309,14 +319,14 @@ int main( int argc, char* args[] )
             /**renders and deletes objects**/
             for(auto &Pipe : btmPipe){
                 Pipe.render(Pipe.mPosX,Pipe.mPosY,0);
-                if(Pipe.mPosX<0){
+                if(Pipe.mPosX<-400){
                     Pipe.~Pipe();
                     btmPipe.erase(btmPipe.begin());
                 }
             }
             for(auto &Pipe : topPipe){
                 Pipe.render(Pipe.mPosX,Pipe.mPosY,180);
-                if(Pipe.mPosX<0){
+                if(Pipe.mPosX<-400){
                     Pipe.~Pipe();
                     topPipe.erase(topPipe.begin());
                 }
@@ -633,7 +643,7 @@ void Bird::rotateBox()
 }
 
 void Pipe::move(){
-    mPosX = mPosX - 10;
+    mPosX = mPosX - 5;
 }
 
 void Bird::render(){
