@@ -219,13 +219,18 @@ int main( int argc, char* args[] )
             std::vector<Pipe> topPipe;
 
             btmPipe.emplace_back(800,300);
+            btmPipe.emplace_back(840,300);
+
+            topPipe.emplace_back(800,300);
+            topPipe.emplace_back(840,300);
+
 
             int pipeCntr = 0;
             int j = 0;
 
             int placeCntr = 0;
 
-            int rndm = 0;
+            int rndm = btmPipe[0].mPosX;
 
 			SDL_Rect scoreboard = {0, 0, SCREEN_WIDTH, SCOREBOARD_HEIGHT};
 			SDL_Rect playfield = {0, SCOREBOARD_HEIGHT, SCREEN_WIDTH, PLAYFIELD_HEIGHT};
@@ -257,22 +262,19 @@ int main( int argc, char* args[] )
                 if(gTimer.isStarted() && !gTimer.isPaused()){
                     //Move the Bird
                     bird.descend();
+
                     //creates new Pipes
-
-                    //temporary generation of pipes
-
-                    rndm = rand()%800;//generate a number between 0 to 400
-
-                    if(placeCntr%20==0){
-                        btmPipe.emplace_back(rndm+800,300);
-                        pipeCntr++;
+                    rndm = rand()%800;
+                    if(btmPipe[btmPipe.size()-1].mPosX-btmPipe[btmPipe.size()-2].mPosX<150)
+                    {
+                        btmPipe.pop_back();
+                        topPipe.pop_back();
                     }
 
-                    if(j%20 == 0){
-                        topPipe.emplace_back(rndm+800,-300);
-                    }
-                    placeCntr++;
-                    j++;
+
+                    btmPipe.emplace_back(rndm+800,300);
+                    topPipe.emplace_back(rndm+800,-300);
+
                     for(auto &Pipe : btmPipe){
                         Pipe.move();
                     }
