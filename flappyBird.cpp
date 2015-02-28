@@ -217,20 +217,16 @@ int main( int argc, char* args[] )
 
             std::vector<Pipe> btmPipe;
             std::vector<Pipe> topPipe;
+            //initial pipes generated
+            btmPipe.emplace_back(800,400);
+            btmPipe.emplace_back(840,400);
 
-            btmPipe.emplace_back(800,300);
-            btmPipe.emplace_back(840,300);
+            topPipe.emplace_back(800,-300);
+            topPipe.emplace_back(840,-300);
 
-            topPipe.emplace_back(800,300);
-            topPipe.emplace_back(840,300);
-
-
-            int pipeCntr = 0;
-            int j = 0;
-
-            int placeCntr = 0;
-
-            int rndm = btmPipe[0].mPosX;
+            int rndmPosX = 0;
+            int rndmPosY = 0;
+            int spceBtwnPipes = 200;
 
 			SDL_Rect scoreboard = {0, 0, SCREEN_WIDTH, SCOREBOARD_HEIGHT};
 			SDL_Rect playfield = {0, SCOREBOARD_HEIGHT, SCREEN_WIDTH, PLAYFIELD_HEIGHT};
@@ -263,17 +259,20 @@ int main( int argc, char* args[] )
                     //Move the Bird
                     bird.descend();
 
-                    //creates new Pipes
-                    rndm = rand()%800;
-                    if(btmPipe[btmPipe.size()-1].mPosX-btmPipe[btmPipe.size()-2].mPosX<150)
+                    rndmPosX = rand()%800+800;
+                    rndmPosY = rand()%100+(((rand()%3+1)*100)+100);
+                    if(rndmPosY>400){
+                        rndmPosY = 400;
+                    }
+
+                    if(btmPipe[btmPipe.size()-1].mPosX-btmPipe[btmPipe.size()-2].mPosX<spceBtwnPipes)
                     {
                         btmPipe.pop_back();
                         topPipe.pop_back();
                     }
 
-
-                    btmPipe.emplace_back(rndm+800,300);
-                    topPipe.emplace_back(rndm+800,-300);
+                    btmPipe.emplace_back(rndmPosX,rndmPosY);
+                    topPipe.emplace_back(rndmPosX,rndmPosY-600);
 
                     for(auto &Pipe : btmPipe){
                         Pipe.move();
@@ -281,7 +280,6 @@ int main( int argc, char* args[] )
                     for(auto &Pipe : topPipe){
                         Pipe.move();
                     }
-
                 }
          	//Clear screen
             SDL_RenderClear( gRenderer );
@@ -315,7 +313,6 @@ int main( int argc, char* args[] )
 			gBGTexture.render(scrollingOffset, 0);
 			gBGTexture.render(scrollingOffset + gBGTexture.getWidth(), 0);
 			gBGTexture.render(scrollingOffset + 2*gBGTexture.getWidth(), 0);
-
             //Render objects
             bird.render();
             /**renders and deletes objects**/
@@ -333,7 +330,6 @@ int main( int argc, char* args[] )
                     topPipe.erase(topPipe.begin());
                 }
             }
-
             //Update screen
 			SDL_RenderPresent( gRenderer );
 			}
