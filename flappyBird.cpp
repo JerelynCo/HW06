@@ -17,12 +17,6 @@ const int SCREEN_HEIGHT = 480;
 const int SCOREBOARD_HEIGHT = 50;
 const int PLAYFIELD_HEIGHT = SCREEN_HEIGHT-SCOREBOARD_HEIGHT;
 
-//Rectangle struct
-struct Rectangle{
-    int x, y;
-    int h, w;
-};
-
 //Texture wrapper class
 class LTexture{
 	public:
@@ -103,7 +97,7 @@ class LTimer{
 class Bird{
     public:
 		//The dimensions of the Bird
-		static const int BIRD_WIDTH = 40;
+		static const int BIRD_WIDTH = 57;
 		static const int BIRD_HEIGHT = 40;
 
 		//Maximum axis velocity of the Bird
@@ -122,8 +116,6 @@ class Bird{
 		//Shows the Bird on the screen
 		void render();
 
-		void rotateBox();
-
     private:
 		bool goUp;
 
@@ -133,12 +125,13 @@ class Bird{
 		//The velocity of the Bird
 		double mVelY;
 
-		double bGravity;
+		double mGravity;
 		double angle;
 
-		SDL_Rect box;
+		SDL_Rect mRect;
 
-		int centerX,centerY;
+		//for SAT
+		int centerX, centerY, halfWidth, halfHeight, unitX, unitY;
 };
 
 class Pipe{
@@ -154,14 +147,13 @@ class Pipe{
 
 		void move();
 
-		Rectangle& getCollider();
-
-		void shiftColliders();
-
-	
-		Rectangle mCollider;
 		int mPosX, mPosY;
-		int angle;
+
+	private:
+		SDL_Rect mRect;
+		//for SAT
+		int centerX, centerY, halfWidth, halfHeight, unitX, unitY;
+		
 };
 
 //Starts up SDL and creates window
@@ -170,11 +162,13 @@ bool init();
 //Loads media
 bool loadMedia();
 
-int gScore = 0;
-const int PIPE_INTERVAL = 300;
-
 //Frees media and shuts down SDL
 void close();
+
+//checks collision between bird and pipes
+bool checkCollision(SDL_Rect &a, SDL_Rect &b);
+
+int gScore = 0;
 
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
@@ -222,6 +216,8 @@ int main( int argc, char* args[] )
 
 			//reference position for top and bottom pipes
 			int refPos = 0;
+			int pipesSeparation = 150; 
+			const int PIPE_INTERVAL = 300;
 
 			std::stringstream scoreText;
 
@@ -231,8 +227,8 @@ int main( int argc, char* args[] )
             std::vector<Pipe> btmPipe;
             std::vector<Pipe> topPipe;
 
-            btmPipe.emplace_back(SCREEN_WIDTH,360);
-            topPipe.emplace_back(SCREEN_WIDTH, -200);
+            btmPipe.emplace_back(SCREEN_WIDTH, 360);
+            topPipe.emplace_back(SCREEN_WIDTH, -250);
 
 
 			SDL_Rect scoreboard = {0, 0, SCREEN_WIDTH, SCOREBOARD_HEIGHT};
@@ -267,73 +263,74 @@ int main( int argc, char* args[] )
                     bird.descend();
 
                     //positions top pipe in reference to bottom pipe. Ypos of btmPipe set at refPos as reference
-                    refPos = 100 + rand()%250;
+                    refPos = pipesSeparation + rand()%250;
                     btmPipe.emplace_back(SCREEN_WIDTH+5, refPos);
-                    topPipe.emplace_back(SCREEN_WIDTH+5, -1*Pipe::PIPE_HEIGHT + (refPos - 100));
-                    //creates new pipe when pipe_interval is reached
+                    topPipe.emplace_back(SCREEN_WIDTH+5, -1*Pipe::PIPE_HEIGHT + (refPos - pipesSeparation));
+
+                    //disregards pipes generated within the PIPE_INTERVAL
                     if(btmPipe[btmPipe.size()-1].mPosX-btmPipe[btmPipe.size()-2].mPosX<PIPE_INTERVAL){
                         btmPipe.pop_back();
                         topPipe.pop_back();
                     }
                     
-
                     for(auto &Pipe : btmPipe){
                         Pipe.move();
                     }
                     for(auto &Pipe : topPipe){
                         Pipe.move();
                     }
-                }
-         	//Clear screen
-            SDL_RenderClear( gRenderer );
+                
+		         	//Clear screen
+		            SDL_RenderClear( gRenderer );
 
-            SDL_RenderSetViewport(gRenderer, &scoreboard);
-            SDL_SetRenderDrawColor(gRenderer, 0xB5, 0xBF, 0xFF, 0xFF );
+		            SDL_RenderSetViewport(gRenderer, &scoreboard);
+		            SDL_SetRenderDrawColor(gRenderer, 0xB5, 0xBF, 0xFF, 0xFF );
 
-            scoreText.str("");
-			scoreText << gScore;
+		            scoreText.str("");
+					scoreText << gScore;
 
-			//Render text
-			SDL_Color textColor = {0x00, 0x00, 0x00, 0xFF};
-			if(!gScoreTexture.loadFromRenderedText(scoreText.str().c_str(), textColor)){
-				printf("Unable to render score texture!\n");
-			}
+					//Render text
+					SDL_Color textColor = {0x00, 0x00, 0x00, 0xFF};
+					if(!gScoreTexture.loadFromRenderedText(scoreText.str().c_str(), textColor)){
+						printf("Unable to render score texture!\n");
+					}
 
-			//Render textures
-			gScoreTextTexture.render((SCREEN_WIDTH-gScoreTextTexture.getWidth())/2, SCOREBOARD_HEIGHT-gScoreTextTexture.getHeight());
-			gScoreTexture.render((SCREEN_WIDTH/2+gScoreTextTexture.getWidth()/2), SCOREBOARD_HEIGHT-gScoreTexture.getHeight());
-			gBirdTexture.render(0,0);
+					//Render textures
+					gScoreTextTexture.render((SCREEN_WIDTH-gScoreTextTexture.getWidth())/2, SCOREBOARD_HEIGHT-gScoreTextTexture.getHeight());
+					gScoreTexture.render((SCREEN_WIDTH/2+gScoreTextTexture.getWidth()/2), SCOREBOARD_HEIGHT-gScoreTexture.getHeight());
+					gBirdTexture.render(0,0);
 
-            SDL_RenderSetViewport(gRenderer, &playfield);
-            SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xBF, 0xFF);
+		            SDL_RenderSetViewport(gRenderer, &playfield);
+		            SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xBF, 0xFF);
 
-            //Scroll background
-			--scrollingOffset;
-			if(scrollingOffset < -gBGTexture.getWidth()){
-				scrollingOffset = 0;
-			}
-			//Render background
-			gBGTexture.render(scrollingOffset, 0);
-			gBGTexture.render(scrollingOffset + gBGTexture.getWidth(), 0);
-			gBGTexture.render(scrollingOffset + 2*gBGTexture.getWidth(), 0);
+		            //Scroll background
+					--scrollingOffset;
+					if(scrollingOffset < -gBGTexture.getWidth()){
+						scrollingOffset = 0;
+					}
+					//Render scrolling background
+					gBGTexture.render(scrollingOffset, 0);
+					gBGTexture.render(scrollingOffset + gBGTexture.getWidth(), 0);
+					gBGTexture.render(scrollingOffset + 2*gBGTexture.getWidth(), 0);
 
-            //Render objects
-            bird.render();
-            /**renders and deletes objects**/
-            for(auto &Pipe : btmPipe){
-                Pipe.render(Pipe.mPosX,Pipe.mPosY,0);
-            }
-            for(auto &Pipe : topPipe){
-                Pipe.render(Pipe.mPosX,Pipe.mPosY,180);
-            }
+		            //Render objects
+		            bird.render();
+		            /**renders and deletes objects**/
+		            for(auto &Pipe : btmPipe){
+		                Pipe.render(Pipe.mPosX,Pipe.mPosY,0);
+		            }
+		            for(auto &Pipe : topPipe){
+		                Pipe.render(Pipe.mPosX,Pipe.mPosY,180);
+		            }
 
-            //Render ground
-            gGroundTexture.render(scrollingOffset, SCREEN_HEIGHT-SCOREBOARD_HEIGHT-26);
-            gGroundTexture.render(scrollingOffset + gGroundTexture.getWidth(), SCREEN_HEIGHT-SCOREBOARD_HEIGHT-26);
-            gGroundTexture.render(scrollingOffset + 2*gGroundTexture.getWidth(), SCREEN_HEIGHT-SCOREBOARD_HEIGHT-26);
+		            //Render scrolling ground
+		            gGroundTexture.render(scrollingOffset, SCREEN_HEIGHT-SCOREBOARD_HEIGHT-26);
+		            gGroundTexture.render(scrollingOffset + gGroundTexture.getWidth(), SCREEN_HEIGHT-SCOREBOARD_HEIGHT-26);
+		            gGroundTexture.render(scrollingOffset + 2*gGroundTexture.getWidth(), SCREEN_HEIGHT-SCOREBOARD_HEIGHT-26);
 
-            //Update screen
-			SDL_RenderPresent( gRenderer );
+		            //Update screen
+					SDL_RenderPresent( gRenderer );
+				}
 			}
 		}
 	}
@@ -562,109 +559,95 @@ Bird::Bird(){
     //Initialize the velocity
     mVelY = 0;
 
-    //Initialize the velocity
+    //Initialize the gravity
+    mGravity = 0.1;
 
-    bGravity = 0.1;
-
+    //Initialize the angle
     angle = -20;
 
-    box.x = mPosX;
-    box.y = mPosY;
-    box.h = BIRD_HEIGHT;
-    box.w = BIRD_WIDTH;
+    //Initialize SAT Params
+    mRect.x = mPosX;
+    mRect.y = mPosY;
+    mRect.h = BIRD_HEIGHT;
+    mRect.w = BIRD_WIDTH;
+
+    centerX = mRect.x+(mRect.w/2);
+    centerY = mRect.y+(mRect.h/2);
+
+    halfWidth = mRect.w/2;
+    halfHeight = mRect.h/2;
+
+    unitX = 0;
+    unitY = 0;
 }
 
 void Bird::handleEvent(SDL_Event& e){
     //If a key was pressed
-	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_SPACE) )
-    {
+	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_SPACE) ){
        ascend();
     }
-
     //If a key was released
-    else if(( e.type == SDL_KEYUP && e.key.repeat == 0 )&&(e.key.keysym.sym==SDLK_SPACE))
-    {
-        //Adjust the velocity
+    else if(( e.type == SDL_KEYUP && e.key.repeat == 0 )&&(e.key.keysym.sym==SDLK_SPACE)){
+       //Adjust the velocity
        goUp = false;
     }
 }
 
-void Bird::ascend()
-{
+void Bird::ascend(){
    //goes up
-   mPosY = mPosY - 50;
-   angle = -20;
+   mPosY = mPosY - 80;
+   angle = -30;
    //prevent overspeeding
-    if(mVelY>4){
-       mVelY = 1;
-    }
+	if(mVelY>4){
+	   mVelY = 1;
+	}
 }
 
-//mPosY = mPosY - 50; for keydown most appropritae motion so far
-//angle = -20;
-
-void Bird::descend()
-{
+void Bird::descend(){
     if(goUp == false){
         mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
+        mVelY = mVelY + mGravity;
         angle += 1;
         if (angle > 90){
             angle = 90;
         }
     }
-
-    rotateBox();
-}
-
-void Bird::rotateBox()
-{
-    centerX = box.x+(box.w/2);
-    centerY = box.y+(box.h/2);
-
-    int upperRX = centerX +(-box.w/2)*cos(20)-(box.y/2)*sin(20);
-    int upperRY = centerY +(-box.w/2)*sin(20)+(box.y/2)*cos(20);
-
-    int lowerRX = centerX +(-box.w/2)*cos(20)-(-box.y/2)*sin(20);
-    int lowerRY = centerY +(-box.w/2)*sin(20)+(-box.y/2)*cos(20);
-
-    int upperLX = centerX +(box.w/2)*cos(20)-(box.y/2)*sin(20);
-    int upperLY = centerY +(box.w/2)*sin(20)+(box.y/2)*cos(20);
-
-    int lowerLX = centerX +(box.w/2)*cos(20)-(-box.y/2)*sin(20);
-    int lowerLY = centerY +(box.w/2)*sin(20)+(-box.y/2)*cos(20);
 }
 
 void Bird::render(){
-	 gBirdTexture.render( mPosX, mPosY, NULL, angle );
+	 gBirdTexture.render(mPosX, mPosY, NULL, angle);
 }
 
 Pipe::Pipe(int x, int y){
     mPosX = x;
     mPosY = y;
-    angle = 0;
 
-    mCollider.x = mPosX;
-    mCollider.y = mPosY;
-    mCollider.h = PIPE_HEIGHT;
-    mCollider.w = PIPE_WIDTH;
-}
+    //Initialize SAT Params
+    mRect.x = mPosX;
+    mRect.y = mPosY;
+    mRect.h = PIPE_HEIGHT;
+    mRect.w = PIPE_WIDTH;
 
-Rectangle& Pipe::getCollider(){
-	return mCollider;
+    centerX = mRect.x+(mRect.w/2);
+    centerY = mRect.y+(mRect.h/2);
+
+    halfWidth = mRect.w/2;
+    halfHeight = mRect.h/2;
+
+    unitX = 0;
+    unitY = 0;
 }
 
 void Pipe::move(){
-    mPosX = mPosX - 4;
-    shiftColliders();
-}
-
-void Pipe::shiftColliders(){
-	mCollider.x = mPosX;
+    mPosX = mPosX - 3;
 }
 
 void Pipe::render(int x, int y, int angle){
     gPipeTexture.render(x, y, NULL, angle);
+}
+
+bool checkCollision(SDL_Rect &a, SDL_Rect &b){
+	return true;
 }
 
 bool init(){
@@ -776,109 +759,3 @@ void close()
 	IMG_Quit();
 	SDL_Quit();
 }
-/**experimental motion methods**/
-/*
-int i = 0;
-int j = 0;
-//goUp = true for keyDown motion less smooth but bird stops when key is held
-void Bird::fly()
-{
-    //Move the Bird up or down
-    if((goUp == true)&&(i == 0)){
-        for(int i = 0; i<10; i++){
-            mPosY = mPosY - 8;
-            angle -=10;
-            if (angle<-20){
-                angle = -20;
-            }
-            //reset the vel to stop it from going really fast
-            if(mPosY < 50){
-                mVelY = 1;
-            }
-        }
-        i = 1;
-    }
-    else if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle +=5;
-        if (angle>20){
-            angle = 20;
-        }
-        //maybe needed later
-        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
-            mVelY = 1;
-        }
-        i=0;
-    }
-    //goUp = false;
-    rotateBox();
-}*/
-
-/*
-//goUp =true for keydown motion is smoother but continuous key press will contimue to increase the position
-void Bird::fly()
-{
-    //Move the Bird up or down
-    if((goUp == true)){
-        mPosY = mPosY - 10;
-        angle -=10;
-        if (angle<-20){
-            angle = -20;
-        }
-        //reset the vel to stop it from going really fast
-        if(mPosY < 50){
-            mVelY = 1;
-        }
-        }
-
-     else if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle +=5;
-        if (angle>20){
-            angle = 20;
-        }
-        //maybe needed later
-        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
-            mVelY = 1;
-        }
-
-    }
-    //goUp = false;
-    rotateBox();
-}
-*/
-
-/*
-//mPosY = 5 for keyDown not smooth at all bird teleports
-void Bird::fly()
-{
-    //Move the Bird up or down
-    if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle +=5;
-        if (angle>20){
-            angle = 20;
-        }
-        //maybe needed later
-        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
-            mVelY = 1;
-        }
-    }
-    else{
-        for(int i = 0; i<100; i++){
-           mPosY = mPosY-mVelY;
-        }
-        angle -=10;
-        if (angle<-20){
-            angle = -20;
-        }
-        //reset the vel to stop it from going really fast
-        if(mPosY < 50){
-            mVelY = 1;
-        }
-    }
-    rotateBox();
-}*/
