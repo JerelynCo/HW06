@@ -5,17 +5,20 @@
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_mixer.h>
-#include <stdio.h>
-#include <string>
 #include <cmath>
 #include <sstream>
+#include <stdio.h>
+#include <string>
 #include <vector>
 
+#define PI 3.14159265
+
 //Screen dimension constants
-const int SCREEN_WIDTH = 800;
-const int SCREEN_HEIGHT = 500;
 const int SCOREBOARD_HEIGHT = 50;
-const int PLAYFIELD_HEIGHT = SCREEN_HEIGHT-SCOREBOARD_HEIGHT;
+const int PLAYFIELD_HEIGHT = 430;
+
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = SCOREBOARD_HEIGHT+PLAYFIELD_HEIGHT;
 
 //Texture wrapper class
 class LTexture{
@@ -27,27 +30,27 @@ class LTexture{
 		~LTexture();
 
 		//Loads image at specified path
-		bool loadFromFile( std::string path );
+		bool loadFromFile(std::string);
 
 		#ifdef _SDL_TTF_H
 		//Creates image from font string
-		bool loadFromRenderedText( std::string textureText, SDL_Color textColor );
+		bool loadFromRenderedText(std::string, SDL_Color);
 		#endif
 
 		//Deallocates texture
 		void free();
 
 		//Set color modulation
-		void setColor( Uint8 red, Uint8 green, Uint8 blue );
+		void setColor(Uint8, Uint8, Uint8);
 
 		//Set blending
-		void setBlendMode( SDL_BlendMode blending );
+		void setBlendMode(SDL_BlendMode);
 
 		//Set alpha modulation how opaque
-		void setAlpha( Uint8 alpha );
+		void setAlpha(Uint8);
 
 		//Renders texture at given point
-		void render( int x, int y, SDL_Rect* clip = NULL, double angle = 0.0, SDL_Point* center = NULL, SDL_RendererFlip flip = SDL_FLIP_NONE );
+		void render(int, int, SDL_Rect* = NULL, double = 0.0, SDL_Point* = NULL, SDL_RendererFlip = SDL_FLIP_NONE);
 
 		//Gets image dimensions
 		int getWidth();
@@ -99,60 +102,52 @@ class Bird{
 		//The dimensions of the Bird
 		static const int BIRD_WIDTH = 40;
 		static const int BIRD_HEIGHT = 40;
-
-		//Maximum axis velocity of the Bird
-		static const int BIRD_VELOCITY = 10;
+		SDL_Point* axis[2];
+		SDL_Point* center;
 
 		//Initializes the variables
-		Bird();
+		Bird():
+			mPosX(SCREEN_WIDTH/2), mPosY(SCOREBOARD_HEIGHT+PLAYFIELD_HEIGHT/2), mVelY(0), angle(0),
+			axis{new SDL_Point{0, 0}, new SDL_Point{0, 0}}, center(new SDL_Point{0, 0}) {};
 
-		//Takes key presses and adjusts the Bird's velocity
-		void handleEvent( SDL_Event& e );
-
-		//Moves the Bird
-		void descend();
-		void ascend();
-
-		//Shows the Bird on the screen
+		void handleEvent(SDL_Event&);
+		bool fall();
 		void render();
-
-		void rotateBox();
-
+		
     private:
-		bool goUp;
-
 		//The X and Y offsets of the Bird
-
 		double mPosX, mPosY;
 
 		//The velocity of the Bird
 		double mVelY;
+		const double mVelX = 5;
 
-		double bGravity;
 		double angle;
-
-		SDL_Rect box;
-
-		int centerX,centerY;
+		
+		void flap();
 };
 
-class Pipe{
-    public:
-        static const int PIPE_WIDTH = 80;
+struct Pipe{
+	int PIPE_WIDTH = 80;
+	int PIPE_HEIGHT;
+	SDL_Point* axis[2];
+	SDL_Point* center;
 
-		Pipe(int x, int y);
-
-		~Pipe(){};
-
-		//Shows the pipe on the screen
-		void render(int x, int y, int angle);
-
-		void move();
-
+	Pipe(int x, int y, int h, double a):
+		mPosX(x), mPosY(y), angle(a), PIPE_HEIGHT(h),
+		axis{new SDL_Point{0, 0}, new SDL_Point{0, 0}}, center(new SDL_Point{0, 0}) {};
+	
+	bool move();
+	void render();
+	
+	private:
 		int mPosX, mPosY;
-
-		int angle;
+		double angle;
 };
+
+SDL_Point* add(int, SDL_Point*, int, SDL_Point*);
+bool SAT(Bird&, Pipe&);
+double dot(SDL_Point*, SDL_Point*);
 
 //Starts up SDL and creates window
 bool init();
@@ -187,22 +182,18 @@ LTimer gTimer;
 
 
 
-int main( int argc, char* args[] )
-
-{
+int main(int argc, char* args[]){
 	//Start up SDL and create window
-	if( !init() ){
-		printf( "Failed to initialize!\n" );
-	}
-	else{
+	if(!init()){
+		printf("Failed to initialize!\n");
+	}else{
 		//Load media
 		if(!loadMedia()){
 			printf("Failed to load media!\n");
-		}
-		else
-		{
+		}else{
 			//Main loop flag
 			bool quit = false;
+			bool gameover = false;
 
 			//Event handler
 			SDL_Event e;
@@ -227,103 +218,103 @@ int main( int argc, char* args[] )
             //start global game timer
             gTimer.start();
 			//While application is running
-			while( !quit ){
+			while(!quit){
 				//Handle events on queue
-				while( SDL_PollEvent( &e ) != 0 ){
+				while(SDL_PollEvent(&e) != 0){
 					//User requests quit
-					if( e.type == SDL_QUIT ){
+					if(e.type == SDL_QUIT){
 						quit = true;
-					}
-					else if(e.type == SDL_KEYDOWN){
+					}else if(e.type == SDL_KEYDOWN){
                         //Pause/unpause
                         if(e.key.keysym.sym == SDLK_p){
                             if(gTimer.isPaused()){
                                 gTimer.unpause();
-                            }
-                            else{
+                            }else{
                                 gTimer.pause();
                             }
                         }
                     }
 					//Handle input for the Bird
-				 	bird.handleEvent( e );
+					if(!gameover){bird.handleEvent(e);}
 				}
-                if(gTimer.isStarted() && !gTimer.isPaused()){
+                
+				if(gTimer.isStarted() && !gTimer.isPaused()){
                     //Move the Bird
-                    bird.descend();
-                    //creates new Pipes
+                    bird.fall();
 
-                    //temporary generation of pipes
-                    if((i%50)==0){
-                        btmPipe.emplace_back(800,300);
+                    //Temporary generation of pipes
+                    if(i%50 == 0){
+                        btmPipe.emplace_back(800, PLAYFIELD_HEIGHT-100, 100, 0);
                     }
-                    i++;
-                    for(auto &Pipe : btmPipe){
-                        Pipe.move();
-                    }
+                    
+					++i;
 
                     if(j%50 == 0){
-                        topPipe.emplace_back(800,-300);
+                        topPipe.emplace_back(800, 0, 100, 180);
                     }
-                    j++;
-                    for(auto &Pipe : topPipe){
-                        Pipe.move();
-                    }
-
+                    
+					++j;
                 }
-         	//Clear screen
-            SDL_RenderClear( gRenderer );
+         	
+				//Clear screen
+				SDL_RenderClear(gRenderer);
 
-            SDL_RenderSetViewport(gRenderer, &scoreboard);
-            SDL_SetRenderDrawColor(gRenderer, 0xB5, 0xBF, 0xFF, 0xFF );
+				SDL_RenderSetViewport(gRenderer, &scoreboard);
+				SDL_SetRenderDrawColor(gRenderer, 0xB5, 0xBF, 0xFF, 0xFF);
 
-            scoreText.str("");
-			scoreText << gScore;
+				scoreText.str("");
+				scoreText << gScore;
 
-			//Render text
-			SDL_Color textColor = {0x00, 0x00, 0x00, 0xFF};
-			if(!gScoreTexture.loadFromRenderedText(scoreText.str().c_str(), textColor)){
-				printf("Unable to render score texture!\n");
-			}
+				//Render text
+				SDL_Color textColor = {0x00, 0x00, 0x00, 0xFF};
+				if(!gScoreTexture.loadFromRenderedText(scoreText.str().c_str(), textColor)){
+					printf("Unable to render score texture!\n");
+				}
 
-			//Render textures
-			gScoreTextTexture.render((SCREEN_WIDTH-gScoreTextTexture.getWidth())/2, SCOREBOARD_HEIGHT-gScoreTextTexture.getHeight());
-			gScoreTexture.render((SCREEN_WIDTH/2+gScoreTextTexture.getWidth()/2), SCOREBOARD_HEIGHT-gScoreTexture.getHeight());
-			gBirdTexture.render(0,0);
+				//Render textures
+				gScoreTextTexture.render((SCREEN_WIDTH-gScoreTextTexture.getWidth())/2, SCOREBOARD_HEIGHT-gScoreTextTexture.getHeight());
+				gScoreTexture.render((SCREEN_WIDTH/2+gScoreTextTexture.getWidth()/2), SCOREBOARD_HEIGHT-gScoreTexture.getHeight());
+				gBirdTexture.render(0,0);
 
-            SDL_RenderSetViewport(gRenderer, &playfield);
-            SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xBF, 0xFF );
+				SDL_RenderSetViewport(gRenderer, &playfield);
+				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xBF, 0xFF );
+				
+				//Scroll background
+				if(!gameover){--scrollingOffset;}
+				
+				if(scrollingOffset < -gBGTexture.getWidth()){
+					scrollingOffset = 0;
+				}
+				//Render background
+				gBGTexture.render(scrollingOffset, 0);
+				gBGTexture.render(scrollingOffset + gBGTexture.getWidth(), 0);
+				gBGTexture.render(scrollingOffset + 2*gBGTexture.getWidth(), 0);
+				
+				/**renders and deletes objects**/
+				for(auto &Pipe : btmPipe){
+					if(!gameover){
+						if(!Pipe.move()){
+							btmPipe.erase(btmPipe.begin());
+						}
+					}
+					if(SAT(bird, Pipe)){gameover = true;}
+					Pipe.render();
+				}
+				for(auto &Pipe : topPipe){
+					if(!gameover){
+						if(!Pipe.move()){
+							topPipe.erase(topPipe.begin());
+						}
+					}
+					if(SAT(bird, Pipe)){gameover = true;}
+					Pipe.render();
+				}
 
-            //Scroll background
-			--scrollingOffset;
-			if(scrollingOffset < -gBGTexture.getWidth()){
-				scrollingOffset = 0;
-			}
-			//Render background
-			gBGTexture.render(scrollingOffset, 0);
-			gBGTexture.render(scrollingOffset + gBGTexture.getWidth(), 0);
-			gBGTexture.render(scrollingOffset + 2*gBGTexture.getWidth(), 0);
-
-            //Render objects
-            bird.render();
-            /**renders and deletes objects**/
-            for(auto &Pipe : btmPipe){
-                Pipe.render(Pipe.mPosX,Pipe.mPosY,0);
-                if(Pipe.mPosX<0){
-                    Pipe.~Pipe();
-                    btmPipe.erase(btmPipe.begin());
-                }
-            }
-            for(auto &Pipe : topPipe){
-                Pipe.render(Pipe.mPosX,Pipe.mPosY,180);
-                if(Pipe.mPosX<0){
-                    Pipe.~Pipe();
-                    topPipe.erase(topPipe.begin());
-                }
-            }
-
-            //Update screen
-			SDL_RenderPresent( gRenderer );
+				if(!bird.fall()){gameover = true;}
+				bird.render();
+				
+				//Update screen
+				SDL_RenderPresent(gRenderer);
 			}
 		}
 	}
@@ -345,7 +336,7 @@ LTexture::~LTexture(){
 	free();
 }
 
-bool LTexture::loadFromFile( std::string path ){
+bool LTexture::loadFromFile(std::string path){
 	//Get rid of preexisting texture
 	free();
 
@@ -354,17 +345,17 @@ bool LTexture::loadFromFile( std::string path ){
 
 	//Load image at specified path
 	SDL_Surface* loadedSurface = IMG_Load(path.c_str());
-	if( loadedSurface == NULL ){
-		printf( "Unable to load image %s! SDL_image Error: %s\n", path.c_str(), IMG_GetError() );
+	if(loadedSurface == NULL){
+		printf("Unable to load image %s! SDL_image Error: %s\n", path.c_str(), IMG_GetError());
 	}
 	else{
 		//Color key image
-		SDL_SetColorKey( loadedSurface, SDL_TRUE, SDL_MapRGB( loadedSurface->format, 0xFF, 0xFF, 0xFF ) );
+		SDL_SetColorKey(loadedSurface, SDL_TRUE, SDL_MapRGB(loadedSurface->format, 0xFF, 0xFF, 0xFF));
 
 		//Create texture from surface pixels
-        newTexture = SDL_CreateTextureFromSurface( gRenderer, loadedSurface );
-		if( newTexture == NULL ){
-			printf( "Unable to create texture from %s! SDL Error: %s\n", path.c_str(), SDL_GetError() );
+        newTexture = SDL_CreateTextureFromSurface(gRenderer, loadedSurface);
+		if(newTexture == NULL){
+			printf("Unable to create texture from %s! SDL Error: %s\n", path.c_str(), SDL_GetError());
 		}
 		else{
 			//Get image dimensions
@@ -373,7 +364,7 @@ bool LTexture::loadFromFile( std::string path ){
 		}
 
 		//Get rid of old loaded surface
-		SDL_FreeSurface( loadedSurface );
+		SDL_FreeSurface(loadedSurface);
 	}
 
 	//Return success
@@ -411,7 +402,7 @@ void LTimer::stop(){
 }
 
 void LTimer::pause(){
-//If the timer is running and isn't already paused
+	//If the timer is running and isn't already paused
     if(mStarted && !mPaused){
     //Pause the timer
         mPaused = true;
@@ -434,9 +425,10 @@ void LTimer::unpause(){
 }
 
 Uint32 LTimer::getTicks(){
-//The actual timer time
+	//The actual timer time
     Uint32 time = 0;
-//If the timer is running
+	
+	//If the timer is running
     if(mStarted){
     //If the timer is paused
         if(mPaused){
@@ -461,18 +453,17 @@ bool LTimer::isPaused(){
 }
 
 #ifdef _SDL_TTF_H
-bool LTexture::loadFromRenderedText( std::string textureText, SDL_Color textColor )
-{
+bool LTexture::loadFromRenderedText(std::string textureText, SDL_Color textColor){
 	//Get rid of preexisting texture
 	free();
 
 	//Render text surface
-	SDL_Surface* textSurface = TTF_RenderText_Solid( gFont, textureText.c_str(), textColor);
+	SDL_Surface* textSurface = TTF_RenderText_Solid(gFont, textureText.c_str(), textColor);
 	if( textSurface != NULL ){
 		//Create texture from surface pixels
-        mTexture = SDL_CreateTextureFromSurface( gRenderer, textSurface );
+        mTexture = SDL_CreateTextureFromSurface(gRenderer, textSurface);
 		if( mTexture == NULL ){
-			printf( "Unable to create texture from rendered text! SDL Error: %s\n", SDL_GetError() );
+			printf("Unable to create texture from rendered text! SDL Error: %s\n", SDL_GetError());
 		}
 		else{
 			//Get image dimensions
@@ -481,10 +472,10 @@ bool LTexture::loadFromRenderedText( std::string textureText, SDL_Color textColo
 		}
 
 		//Get rid of old surface
-		SDL_FreeSurface( textSurface );
+		SDL_FreeSurface(textSurface);
 	}
 	else{
-		printf( "Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError() );
+		printf("Unable to render text surface! SDL_ttf Error: %s\n", TTF_GetError());
 	}
 
 
@@ -495,42 +486,41 @@ bool LTexture::loadFromRenderedText( std::string textureText, SDL_Color textColo
 
 void LTexture::free(){
 	//Free texture if it exists
-	if( mTexture != NULL )
+	if(mTexture != NULL)
 	{
-		SDL_DestroyTexture( mTexture );
+		SDL_DestroyTexture(mTexture);
 		mTexture = NULL;
 		mWidth = 0;
 		mHeight = 0;
 	}
 }
 
-void LTexture::setColor( Uint8 red, Uint8 green, Uint8 blue ){
+void LTexture::setColor(Uint8 red, Uint8 green, Uint8 blue){
 	//Modulate texture rgb
-	SDL_SetTextureColorMod( mTexture, red, green, blue );
+	SDL_SetTextureColorMod(mTexture, red, green, blue);
 }
 
-void LTexture::setBlendMode( SDL_BlendMode blending ){
+void LTexture::setBlendMode(SDL_BlendMode blending){
 	//Set blending function
-	SDL_SetTextureBlendMode( mTexture, blending );
+	SDL_SetTextureBlendMode(mTexture, blending);
 }
 
-void LTexture::setAlpha( Uint8 alpha ){
+void LTexture::setAlpha(Uint8 alpha){
 	//Modulate texture alpha
-	SDL_SetTextureAlphaMod( mTexture, alpha );
+	SDL_SetTextureAlphaMod(mTexture, alpha);
 }
 
-void LTexture::render( int x, int y, SDL_Rect* clip, double angle, SDL_Point* center, SDL_RendererFlip flip ){
+void LTexture::render(int x, int y, SDL_Rect* clip, double angle, SDL_Point* center, SDL_RendererFlip flip){
 	//Set rendering space and render to screen
-	SDL_Rect renderQuad = { x, y, mWidth, mHeight };
+	SDL_Rect renderQuad = {x, y, mWidth, mHeight};
 
 	//Set clip rendering dimensions
-	if( clip != NULL )
-	{
+	if(clip != NULL){
 		renderQuad.w = clip->w;
 		renderQuad.h = clip->h;
 	}
 	//Render to screen
-	SDL_RenderCopyEx( gRenderer, mTexture, clip, &renderQuad, angle, center, flip );
+	SDL_RenderCopyEx(gRenderer, mTexture, clip, &renderQuad, angle, center, flip);
 }
 
 int LTexture::getWidth(){
@@ -541,107 +531,88 @@ int LTexture::getHeight(){
 	return mHeight;
 }
 
-
-Bird::Bird(){
-    goUp = false;
-
-    //Initialize the offsets
-    mPosX = 100;
-    mPosY = 100;
-
-    //Initialize the velocity
-    mVelY = 0;
-
-    //Initialize the velocity
-
-    bGravity = 0.1;
-
-    angle = -20;
-
-    box.x = mPosX;
-    box.y = mPosY;
-    box.h = BIRD_HEIGHT;
-    box.w = BIRD_WIDTH;
-}
-
-Pipe::Pipe(int x, int y){
-    mPosX = x;
-    mPosY = y;
-
-    angle = 0;
-}
-
 void Bird::handleEvent(SDL_Event& e){
-    //If a key was pressed
-	if( (e.type == SDL_KEYDOWN && e.key.repeat == 0)&&(e.key.keysym.sym==SDLK_SPACE) )
-    {
-       ascend();
-    }
-
-    //If a key was released
-    else if(( e.type == SDL_KEYUP && e.key.repeat == 0 )&&(e.key.keysym.sym==SDLK_SPACE))
-    {
-        //Adjust the velocity
-       goUp = false;
+	if(e.type == SDL_KEYDOWN && e.key.repeat == 0 && e.key.keysym.sym == SDLK_SPACE){
+       flap();
     }
 }
 
-void Bird::ascend()
-{
-   //goes up
-   mPosY = mPosY - 50;
-   angle = -20;
-   //prevent overspeeding
-    if(mVelY>4){
-       mVelY = 1;
-    }
+void Bird::flap(){
+	mVelY = -5;
 }
 
-//mPosY = mPosY - 50; for keydown most appropritae motion so far
-//angle = -20;
-
-void Bird::descend()
-{
-    if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle += 1;
-        if (angle > 90){
-            angle = 90;
-        }
-    }
-
-    rotateBox();
-}
-
-void Bird::rotateBox()
-{
-    centerX = box.x+(box.w/2);
-    centerY = box.y+(box.h/2);
-
-    int upperRX = centerX +(-box.w/2)*cos(20)-(box.y/2)*sin(20);
-    int upperRY = centerY +(-box.w/2)*sin(20)+(box.y/2)*cos(20);
-
-    int lowerRX = centerX +(-box.w/2)*cos(20)-(-box.y/2)*sin(20);
-    int lowerRY = centerY +(-box.w/2)*sin(20)+(-box.y/2)*cos(20);
-
-    int upperLX = centerX +(box.w/2)*cos(20)-(box.y/2)*sin(20);
-    int upperLY = centerY +(box.w/2)*sin(20)+(box.y/2)*cos(20);
-
-    int lowerLX = centerX +(box.w/2)*cos(20)-(-box.y/2)*sin(20);
-    int lowerLY = centerY +(box.w/2)*sin(20)+(-box.y/2)*cos(20);
-}
-
-void Pipe::move(){
-    mPosX = mPosX - 10;
+bool Bird::fall(){
+	for(int i = 0; i < 2; ++i){
+		axis[i]->x = cos((angle+90*i)*PI/180);
+		axis[i]->y = sin((angle+90*i)*PI/180);
+	}
+	
+	center->x = mPosX+BIRD_WIDTH/2;
+	center->y = mPosY+BIRD_HEIGHT/2;
+	
+	mVelY += 0.1;
+	mPosY += mVelY;
+	
+	if(mPosY < 0 || mPosY+BIRD_HEIGHT > PLAYFIELD_HEIGHT){
+		return false;
+	}
+	
+	return true;
+	
 }
 
 void Bird::render(){
-	 gBirdTexture.render( mPosX, mPosY, NULL, angle );
+	angle = 180*atan(mVelY/mVelX)/PI;
+	gBirdTexture.render(mPosX, mPosY, NULL, angle);
 }
 
-void Pipe::render(int x, int y, int angle){
-    gPipeTexture.render(x, y, NULL, angle);
+bool Pipe::move(){
+	for(int i = 0; i < 2; ++i){
+		axis[i]->x = cos((angle+90*i)*PI/180);
+		axis[i]->y = sin((angle+90*i)*PI/180);
+	}
+	
+	center->x = mPosX+PIPE_WIDTH/2;
+	center->y = mPosY+PIPE_HEIGHT/2;
+	
+    mPosX = mPosX - 10;
+	if(mPosX+PIPE_WIDTH < 0){
+		return false;
+	}
+	
+	return true;
+}
+
+void Pipe::render(){
+    gPipeTexture.render(mPosX, mPosY, new SDL_Rect{0, 0, gPipeTexture.getWidth(), PIPE_HEIGHT}, angle);
+}
+
+bool SAT(Bird& b, Pipe& p){
+	for(int i = 0; i < 2; ++i){
+		if(dot(b.axis[i], add(b.BIRD_WIDTH/2, b.axis[0], b.BIRD_HEIGHT/2, b.axis[1]))+
+			dot(b.axis[i], add(p.PIPE_WIDTH/2, p.axis[0], p.PIPE_HEIGHT/2, p.axis[1])) <
+			dot(b.axis[i], new SDL_Point{p.center->x-b.center->x, p.center->y-b.center->y})){
+			return false;
+		}
+	}
+	
+	for(int i = 0; i < 2; ++i){
+		if(dot(p.axis[i], add(b.BIRD_WIDTH/2, b.axis[0], b.BIRD_HEIGHT/2, b.axis[1]))+
+			dot(p.axis[i], add(p.PIPE_WIDTH/2, p.axis[0], p.PIPE_HEIGHT/2, p.axis[1])) <
+			dot(p.axis[i], new SDL_Point{p.center->x-b.center->x, p.center->y-b.center->y})){
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+SDL_Point* add(int m1, SDL_Point* p1, int m2, SDL_Point* p2){
+	return new SDL_Point{m1*p1->x+m2*p2->x, m1*p1->y+m2*p2->y};
+}
+
+double dot(SDL_Point* p1, SDL_Point* p2){
+	return std::abs(p1->x*p2->x+p1->y*p2->y);
 }
 
 bool init(){
@@ -713,23 +684,22 @@ bool loadMedia(){
 		}
 	}
 	//Load textures
-	if( !gBGTexture.loadFromFile("Assets/background.png") ){
-		printf( "Failed to load bg texture!\n" );
+	if(!gBGTexture.loadFromFile("Assets/background.png")){
+		printf("Failed to load bg texture!\n");
 		success = false;
 	}
-	if( !gBirdTexture.loadFromFile("Assets/bird.png") ){
-		printf( "Failed to load bird texture!\n" );
+	if(!gBirdTexture.loadFromFile("Assets/bird.png")){
+		printf("Failed to load bird texture!\n");
 		success = false;
 	}
-	if( !gPipeTexture.loadFromFile("Assets/pipe.png") ){
-		printf( "Failed to load pipe texture!\n" );
+	if(!gPipeTexture.loadFromFile("Assets/pipe.png")){
+		printf("Failed to load pipe texture!\n");
 		success = false;
 	}
 	return success;
 }
 
-void close()
-{
+void close(){
 	//Free loaded images
     gBirdTexture.free();
     gPipeTexture.free();
@@ -739,8 +709,8 @@ void close()
 	gFont = NULL;
 
 	//Destroy window
-	SDL_DestroyRenderer( gRenderer );
-	SDL_DestroyWindow( gWindow );
+	SDL_DestroyRenderer(gRenderer);
+	SDL_DestroyWindow(gWindow);
 	gWindow = NULL;
 	gRenderer = NULL;
 
@@ -748,109 +718,3 @@ void close()
 	IMG_Quit();
 	SDL_Quit();
 }
-/**experimental motion methods**/
-/*
-int i = 0;
-int j = 0;
-//goUp = true for keyDown motion less smooth but bird stops when key is held
-void Bird::fly()
-{
-    //Move the Bird up or down
-    if((goUp == true)&&(i == 0)){
-        for(int i = 0; i<10; i++){
-            mPosY = mPosY - 8;
-            angle -=10;
-            if (angle<-20){
-                angle = -20;
-            }
-            //reset the vel to stop it from going really fast
-            if(mPosY < 50){
-                mVelY = 1;
-            }
-        }
-        i = 1;
-    }
-    else if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle +=5;
-        if (angle>20){
-            angle = 20;
-        }
-        //maybe needed later
-        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
-            mVelY = 1;
-        }
-        i=0;
-    }
-    //goUp = false;
-    rotateBox();
-}*/
-
-/*
-//goUp =true for keydown motion is smoother but continuous key press will contimue to increase the position
-void Bird::fly()
-{
-    //Move the Bird up or down
-    if((goUp == true)){
-        mPosY = mPosY - 10;
-        angle -=10;
-        if (angle<-20){
-            angle = -20;
-        }
-        //reset the vel to stop it from going really fast
-        if(mPosY < 50){
-            mVelY = 1;
-        }
-        }
-
-     else if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle +=5;
-        if (angle>20){
-            angle = 20;
-        }
-        //maybe needed later
-        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
-            mVelY = 1;
-        }
-
-    }
-    //goUp = false;
-    rotateBox();
-}
-*/
-
-/*
-//mPosY = 5 for keyDown not smooth at all bird teleports
-void Bird::fly()
-{
-    //Move the Bird up or down
-    if(goUp == false){
-        mPosY = mPosY + mVelY;
-        mVelY = mVelY + bGravity;
-        angle +=5;
-        if (angle>20){
-            angle = 20;
-        }
-        //maybe needed later
-        if(mPosY + BIRD_HEIGHT > SCREEN_HEIGHT-10){
-            mVelY = 1;
-        }
-    }
-    else{
-        for(int i = 0; i<100; i++){
-           mPosY = mPosY-mVelY;
-        }
-        angle -=10;
-        if (angle<-20){
-            angle = -20;
-        }
-        //reset the vel to stop it from going really fast
-        if(mPosY < 50){
-            mVelY = 1;
-        }
-    }
-    rotateBox();
-}*/
