@@ -155,7 +155,7 @@ bool init();
 //Loads media
 bool loadMedia();
 
-int gScore = -1;
+int gScore = 0;
 
 //Frees media and shuts down SDL
 void close();
@@ -168,6 +168,10 @@ SDL_Renderer* gRenderer = NULL;
 
 //Global Font
 TTF_Font* gFont =  NULL;
+
+//Sound effects
+Mix_Chunk *gPoint = NULL;
+Mix_Chunk *gFlap = NULL;
 
 //Scene textures
 LTexture gBirdTexture;
@@ -284,8 +288,10 @@ int main(int argc, char* args[]){
 				//Scroll background
 				if(!gameover){
 					--scrollingOffset;
-					if(k%70 == 0)
+					if(k%70 == 0 && k!=0){
 						gScore++;
+						Mix_PlayChannel(-1, gPoint, 0);
+					}
 					k++;
 				}
 				
@@ -545,7 +551,8 @@ int LTexture::getHeight(){
 
 void Bird::handleEvent(SDL_Event& e){
 	if(e.type == SDL_KEYDOWN && e.key.repeat == 0 && e.key.keysym.sym == SDLK_SPACE){
-       flap();
+		Mix_PlayChannel(-1, gFlap, 0);
+       	flap();
     }
 }
 
@@ -671,6 +678,11 @@ bool init(){
 					printf("SDL_ttf could not initialize! SDL_ttf Error: %s\n", TTF_GetError());
 					success = false;
 				}
+				//Initialize SDL_mixer
+				if(Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048 ) < 0)				{
+					printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError());
+					success = false;
+				}
 			}
 		}
 	}
@@ -693,6 +705,18 @@ bool loadMedia(){
 			printf("Unable to render score texture!\n");
 			success = false;
 		}
+	}
+	//Load sound Effects
+	gFlap = Mix_LoadWAV("Assets/flap.ogg");
+	if(gFlap == NULL){
+		printf( "Failed to load flap effect! SDL_mixer Error: %s\n", Mix_GetError() );
+		success = false;
+	}
+
+	gPoint = Mix_LoadWAV("Assets/point.ogg");
+	if(gPoint == NULL){
+		printf( "Failed to load point effect! SDL_mixer Error: %s\n", Mix_GetError() );
+		success = false;
 	}
 	//Load textures
 	if(!gBGTexture.loadFromFile("Assets/background.png")){
@@ -722,6 +746,12 @@ void close(){
 
     TTF_CloseFont(gFont);
 	gFont = NULL;
+
+	//Free sound effects
+	Mix_FreeChunk(gFlap);
+	gFlap = NULL;
+	Mix_FreeChunk(gPoint);
+	gPoint = NULL;
 
 	//Destroy window
 	SDL_DestroyRenderer(gRenderer);
