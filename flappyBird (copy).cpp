@@ -155,7 +155,7 @@ bool init();
 //Loads media
 bool loadMedia();
 
-int gScore = -1;
+int gScore = 0;
 
 //Frees media and shuts down SDL
 void close();
@@ -173,13 +173,14 @@ TTF_Font* gFont =  NULL;
 LTexture gBirdTexture;
 LTexture gPipeTexture;
 LTexture gBGTexture;
-LTexture gGroundTexture;
 
 //Scoreboard textures
 LTexture gScoreTexture, gScoreTextTexture;
 
 //Global timer
 LTimer gTimer;
+
+
 
 int main(int argc, char* args[]){
 	//Start up SDL and create window
@@ -203,6 +204,7 @@ int main(int argc, char* args[]){
 			//reference position for top and bottom pipes
 			int refPos = 0;
 			int pipesSeparation = 150; 
+			const int PIPE_INTERVAL = 300;
 
 			std::stringstream scoreText;
 
@@ -212,7 +214,8 @@ int main(int argc, char* args[]){
             std::vector<Pipe> btmPipe;
             std::vector<Pipe> topPipe;
 
-            int i = 0, j = 0, k = 0;
+            btmPipe.emplace_back(SCREEN_WIDTH, 360, 360, 0);
+            topPipe.emplace_back(SCREEN_WIDTH, -250, gPipeTexture.getHeight()-(-250), 180);
 
 			SDL_Rect scoreboard = {0, 0, SCREEN_WIDTH, SCOREBOARD_HEIGHT};
 			SDL_Rect playfield = {0, SCOREBOARD_HEIGHT, SCREEN_WIDTH, PLAYFIELD_HEIGHT};
@@ -243,18 +246,19 @@ int main(int argc, char* args[]){
 				if(gTimer.isStarted() && !gTimer.isPaused()){
                     //Move the Bird
                     bird.fall();
-                    refPos = rand()%100+100;
+
                     //Temporary generation of pipes
-                    if(i%70 == 0){
-                        btmPipe.emplace_back(SCREEN_WIDTH, PLAYFIELD_HEIGHT-refPos, refPos, 0);
+                    if(i%50 == 0){
+                        btmPipe.emplace_back(800, PLAYFIELD_HEIGHT-100, 100, 0);
                     }
+                    
 					++i;
 
-                    if(j%70 == 0){
-	                 	topPipe.emplace_back(SCREEN_WIDTH, 0, PLAYFIELD_HEIGHT-refPos-pipesSeparation, 180);
-					}
+                    if(j%50 == 0){
+                        topPipe.emplace_back(800, 0, 100, 180);
+                    }
+                    
 					++j;
-
                 }
          	
 				//Clear screen
@@ -280,14 +284,8 @@ int main(int argc, char* args[]){
 				SDL_RenderSetViewport(gRenderer, &playfield);
 				SDL_SetRenderDrawColor( gRenderer, 0xFF, 0xFF, 0xBF, 0xFF );
 				
-
 				//Scroll background
-				if(!gameover){
-					--scrollingOffset;
-					if(k%70 == 0)
-						gScore++;
-					k++;
-				}
+				if(!gameover){--scrollingOffset;}
 				
 				if(scrollingOffset < -gBGTexture.getWidth()){
 					scrollingOffset = 0;
@@ -319,11 +317,6 @@ int main(int argc, char* args[]){
 
 				if(!bird.fall()){gameover = true;}
 				bird.render();
-
-				//Render scrolling ground
-	            gGroundTexture.render(scrollingOffset, SCREEN_HEIGHT-SCOREBOARD_HEIGHT-26);
-	            gGroundTexture.render(scrollingOffset + gGroundTexture.getWidth(), SCREEN_HEIGHT-SCOREBOARD_HEIGHT-26);
-	            gGroundTexture.render(scrollingOffset + 2*gGroundTexture.getWidth(), SCREEN_HEIGHT-SCOREBOARD_HEIGHT-26);
 				
 				//Update screen
 				SDL_RenderPresent(gRenderer);
@@ -587,10 +580,11 @@ bool Pipe::move(){
 	center->x = mPosX+PIPE_WIDTH/2;
 	center->y = mPosY+PIPE_HEIGHT/2;
 	
-    mPosX = mPosX - 5;
+    mPosX = mPosX - 10;
 	if(mPosX+PIPE_WIDTH < 0){
 		return false;
 	}
+	
 	return true;
 }
 
@@ -705,10 +699,6 @@ bool loadMedia(){
 	}
 	if(!gPipeTexture.loadFromFile("Assets/pipe.png")){
 		printf("Failed to load pipe texture!\n");
-		success = false;
-	}
-	if(!gGroundTexture.loadFromFile("Assets/ground.png")){
-		printf("Failed to load ground texture!\n");
 		success = false;
 	}
 	return success;
